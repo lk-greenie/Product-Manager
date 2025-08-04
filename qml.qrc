@@ -1,0 +1,21 @@
+<RCC>
+    <qresource prefix="/">
+        <file>qml/LoginPage.qml</file>
+        <file>qml/Enter.qml</file>
+        <file>qml/RegisterPage.qml</file>
+        <file>qml/MainMenu.qml</file>
+        <file>qml/Me.qml</file>
+        <file>qml/DisplayPage.qml</file>
+        <file>qml/CheckPage.qml</file>
+        <file>qml/ChatPage.qml</file>
+        <file>qml/AIPage.qml</file>
+        <file>qml/VisualizationPage.qml</file>
+        <file>qml/ExpensePage.qml</file>
+        <file>qml/IncomePage.qml</file>
+        <file>qml/AddCat.qml</file>
+        <file>qml/In.qml</file>
+        <file>qml/Out.qml</file>
+        <file>qml/SetPrice.qml</file>
+        <file>qml/SetLimits.qml</file>
+    </qresource>
+</RCC>
