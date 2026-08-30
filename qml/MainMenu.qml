@@ -1,160 +1,49 @@
 import QtQuick 2.15
-import QtQuick.Controls 2.15
-import QtQuick.Window 2.15
 import QtQuick.Layouts
+import "./MainMenu"
 
 Window {
-    id: mainmenu
+    id: mainMenu
+
     visible: true
-    width: 800
+    width: 1000
     height: 600
-    title: "华东交通大学南区超市管理系统"
+    title: qsTr("产品进销存管理系统")
 
-    property bool isNavOpen: true  // 默认展开
+    property string currentRoute: "stock"
+    property var loginWindow: null
 
-    ListModel{
-        id:navModel
-        ListElement{name:"库存管理"}
-        ListElement{name:"收支记录"}
-        ListElement{name:"可视化数据"}
-        ListElement{name:"沟通协商"}
-        ListElement{name:"AI小助手"}
-    }
+    RowLayout {
+        anchors.fill: parent
+        spacing: 0
 
-    //左侧导航栏
-    Rectangle {
-        id:nav
-        height:parent.height
-        width: isNavOpen? 150:5
-        z:10
+        SideNavigation {
+            id: navigation
+            Layout.fillHeight: true
+            Layout.preferredWidth: expanded ? mainMenu.width * 0.15 : mainMenu.width * 0.012
+            currentRoute: mainMenu.currentRoute
+            onNavigate: function(route) { mainMenu.currentRoute = route }
+            onProfileRequested: profilePopup.open()
 
-        Behavior on x {
-            NumberAnimation { duration: 300; easing.type: Easing.OutQuad }
-        }
-
-        // 左侧弹窗组件
-        Popup {
-            id: leftPopup
-            width: 300
-            height: parent.height
-            modal: true
-            closePolicy: Popup.CloseOnPressOutside
-
-            // 弹窗内容
-            Rectangle {
-                anchors.fill: parent
-                color: "lightgray"
-                Text {
-                    anchors.centerIn: parent
-                    text: "左侧弹窗内容"
-                }
-            }
-
-            // 动画效果
-            Behavior on x {
-                NumberAnimation { duration: 300; easing.type: Easing.InOutQuad }
+            Behavior on Layout.preferredWidth {
+                NumberAnimation { duration: 300; easing.type: Easing.OutQuad }
             }
         }
 
-        RowLayout{
-            id:bar
-            width:nav.width
-            height: nav.height
-            Column {
-                id:button
-                Layout.fillHeight: parent
-                width: bar.width-drawer.width
-                spacing: 10
-
-                ToolButton {
-                    text:"我的"
-                    width: button.width
-                    height: 60
-                    font.pixelSize: 14
-                    onClicked:{
-                        leftPopup.open()
-                    }
-                }
-
-                Repeater {
-
-                    model: navModel
-                    ToolButton {
-                        width: button.width
-                        height: 60
-                        font.pixelSize: 14
-
-                        contentItem: Text {
-                            text:isNavOpen?name:""
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                        }
-
-                        onClicked: {
-                            stackview.pop()
-                            if(name=="库存管理")stackview.push(displayPage)
-                            if(name=="收支记录")stackview.push(checkPage)
-                            if(name=="可视化数据")stackview.push(visualizationPage)
-                            if(name=="沟通协商")stackview.push(chatPage)
-                            if(name=="AI小助手")stackview.push(aiPage)
-                        }
-                    }
-                }
-            }
-            ToolButton {
-                id:drawer
-                width:1
-                Layout.fillHeight: bar
-                Layout.alignment: Qt.AlignRight
-                onClicked: isNavOpen = !isNavOpen
-            }
-        }
-
-
-    }
-
-    //右侧操作展示界面
-    StackView {
-        id: stackview
-        anchors.right: parent.right
-        height:parent.height
-        width:parent.width-nav.width
-        initialItem:displayPage
-    }
-
-    Component {
-        id: displayPage
-        DisplayPage {
-
+        MainContentStack {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            route: mainMenu.currentRoute
         }
     }
 
-    Component {
-        id: checkPage
-        CheckPage {
-
+    ProfilePopup {
+        id: profilePopup
+        onLogoutRequested: {
+            if (mainMenu.loginWindow)
+                mainMenu.loginWindow.show()
+            mainMenu.close()
+            mainMenu.destroy()
         }
     }
-
-    Component {
-        id: visualizationPage
-        VisualizationPage {
-
-        }
-    }
-
-    Component {
-        id: chatPage
-        ChatPage {
-
-        }
-    }
-
-    Component {
-        id: aiPage
-        AIPage {
-
-        }
-    }
-
 }

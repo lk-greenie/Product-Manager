@@ -1,27 +1,42 @@
-QT += quick sql widgets
+QT += quick sql widgets network charts
 
-# You can make your code fail to compile if it uses deprecated APIs.
-# In order to do so, uncomment the following line.
-#DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
+CONFIG += c++17
 
 SOURCES += \
-        enter.cpp \
-        main.cpp \
-        tabledisplay.cpp
+    src/app/main.cpp \
+    src/app/appconfig.cpp \
+    src/backend/auth/enter.cpp \
+    src/backend/ai/deepseekclient.cpp \
+    src/backend/inventory/tabledisplay_db_models.cpp \
+    src/backend/inventory/tabledisplay_inventory.cpp \
+    src/backend/inventory/tabledisplay_query.cpp
+
+HEADERS += \
+    src/app/appconfig.h \
+    src/backend/auth/enter.h \
+    src/backend/ai/deepseekclient.h \
+    src/backend/inventory/tabledisplay.h
+
+INCLUDEPATH += \
+    src/app \
+    src/backend/auth \
+    src/backend/ai \
+    src/backend/inventory
 
 RESOURCES += qml.qrc
 
-# Additional import path used to resolve QML modules in Qt Creator's code model
-QML_IMPORT_PATH =
+# 将运行时配置复制到可执行文件所在目录，使程序无论从 Qt Creator 还是直接启动
+# 都能找到 config/app.ini。Qt Creator 影子构建会把可执行文件放在 $(DESTDIR)
+# （例如 build/Desktop_Qt_6_8_3_MinGW_64_bit-Debug/debug），配置需与其相邻。
+win32 {
+    QMAKE_POST_LINK += $$QMAKE_COPY_DIR \
+        $$shell_quote($$shell_path($$PWD/config)) \
+        $$shell_quote($$shell_path($(DESTDIR)/config))
+}
 
-# Additional import path used to resolve QML modules just for Qt Quick Designer
+QML_IMPORT_PATH =
 QML_DESIGNER_IMPORT_PATH =
 
-# Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
-
-HEADERS += \
-    enter.h \
-    tabledisplay.h

@@ -1,139 +1,79 @@
-<<<<<<< HEAD
-# This file is used to ignore files which are generated
-# ----------------------------------------------------------------------------
-
+# Temporary and editor files
 *~
 *.autosave
-*.a
-*.core
-*.moc
-*.o
-*.obj
 *.orig
 *.rej
-*.so
-*.so.*
-*_pch.h.cpp
-*_resource.rc
-*.qm
+*.swp
 .#*
 *.*#
-core
-!core/
-tags
 .DS_Store
 .directory
-*.debug
-Makefile*
-*.prl
-*.app
-moc_*.cpp
-ui_*.h
-qrc_*.cpp
 Thumbs.db
-*.res
-*.rc
-/.qmake.cache
-/.qmake.stash
 
-# qtcreator generated files
-*.pro.user*
-*.qbs.user*
-CMakeLists.txt.user*
-
-# xemacs temporary files
-*.flc
-
-# Vim temporary files
-.*.swp
-
-# Visual Studio generated files
-*.ib_pdb_index
+# C/C++ build artifacts
+*.a
+*.core
+*.dll
+*.exe
 *.idb
 *.ilk
+*.lo
+*.obj
+*.o
 *.pdb
+*.so
+*.so.*
+*.slo
+*.dylib
+*.Debug
+*.Release
+*_pch.h.cpp
+*_resource.rc
+*.res
+*.rc
+
+# Qt generated files
+/.qmake.cache
+/.qmake.stash
+*.jsc
+*.moc
+*.prl
+*.qm
+*.qmlc
+*.pro.user*
+*.qbs.user*
+*.qmlproject.user*
+*_plugin_import.cpp
+*_qmlcache.qrc
+Makefile*
+moc_*.cpp
+moc_*.h
+object_script.*.Debug
+object_script.*.Release
+qrc_*.cpp
+target_wrapper.*
+ui_*.h
+
+# IDE and compilation databases
 *.sln
 *.suo
 *.vcproj
-*vcproj.*.*.user
-*.ncb
-*.sdf
-*.opensdf
 *.vcxproj
-*vcxproj.*
+*creator.user*
+CMakeLists.txt.user*
+compile_commands.json
+.qtc_clangd/
 
-# MinGW generated files
-*.Debug
-*.Release
-
-# Python byte code
-*.pyc
-
-# Binaries
-# --------
-*.dll
-*.exe
-
-# Directories with generated files
+# Generated directories
 .moc/
 .obj/
 .pch/
 .rcc/
 .uic/
 /build*/
-=======
-# C++ objects and libs
-*.slo
-*.lo
-*.o
-*.a
-*.la
-*.lai
-*.so
-*.so.*
-*.dll
-*.dylib
+build/
 
-# Qt-es
-object_script.*.Release
-object_script.*.Debug
-*_plugin_import.cpp
-/.qmake.cache
-/.qmake.stash
-*.pro.user
-*.pro.user.*
-*.qbs.user
-*.qbs.user.*
-*.moc
-moc_*.cpp
-moc_*.h
-qrc_*.cpp
-ui_*.h
-*.qmlc
-*.jsc
-Makefile*
-*build-*
-*.qm
-*.prl
-
-# Qt unit tests
-target_wrapper.*
-
-# QtCreator
-*.autosave
-
-# QtCreator Qml
-*.qmlproject.user
-*.qmlproject.user.*
-
-# QtCreator CMake
-CMakeLists.txt.user*
-
-# QtCreator 4.8< compilation database 
-compile_commands.json
-
-# QtCreator local machine specific files for imported projects
-*creator.user*
-
-*_qmlcache.qrc
->>>>>>> 6ee72516b871d7e6f368ab2d288d87b5f2e6b5d2
+# Local tools and runtime state
+.claude/
+user_config.ini
+config/app.ini

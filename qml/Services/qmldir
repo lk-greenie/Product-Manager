@@ -1,0 +1,2 @@
+module App.Services
+singleton BackendContract 1.0 BackendContract.qml
