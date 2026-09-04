@@ -14,13 +14,17 @@ TextField {
 
     verticalAlignment: TextInput.AlignVCenter
     implicitHeight: Theme.controlHeight
+    implicitWidth: 180
     font.pixelSize: Theme.fontSmall
     color: Theme.textPrimary
+    placeholderTextColor: Theme.textMuted
+    leftPadding: 12
+    rightPadding: 12
 
     background: Rectangle {
         radius: Theme.radiusSmall
-        color: Theme.surface
-        border.color: control.activeFocus ? Theme.primaryDark : "transparent"
-        border.width: 1
+        color: control.enabled ? Theme.surface : Theme.surfaceMuted
+        border.color: control.activeFocus ? Theme.primary : Theme.border
+        border.width: control.activeFocus ? 2 : 1
     }
 }

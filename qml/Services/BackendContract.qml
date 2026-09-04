@@ -58,7 +58,7 @@ QtObject {
     }
 
     function canViewRoute(permission, route) {
-        if (route === stockFlag || route === "assistant")
+        if (route === stockFlag || route === "assistant" || route === "profile")
             return true
         if (route.indexOf("records.") === 0)
             return canViewRecords(permission)

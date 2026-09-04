@@ -7,8 +7,19 @@ import QtQuick.Layouts
 Item {
     id: root
 
+    Rectangle {
+        anchors.fill: parent
+        color: Theme.surface
+        border.color: Theme.border
+        border.width: 1
+        radius: Theme.radiusMedium
+        z: -1
+    }
+
     property alias model: tableView.model
     property var dateColumns: []
+    property var datetimeColumns: []
+    property var moneyColumns: []
     property var hiddenColumns: []
     property int warningQuantityColumn: -1
     property int upperLimitColumn: -1
@@ -17,6 +28,14 @@ Item {
     property int recordAmountColumn: -1
     property bool showStatusColors: true
     property int columnCount: 5
+    readonly property int visibleColumnCount: {
+        let count = 0
+        for (let column = 0; column < root.columnCount; ++column) {
+            if (!root.isHidden(column))
+                ++count
+        }
+        return Math.max(1, count)
+    }
 
     function contains(columns, column) {
         return columns.indexOf(column) !== -1
@@ -30,6 +49,14 @@ Item {
         return contains(dateColumns, column)
     }
 
+    function isDatetimeColumn(column) {
+        return contains(datetimeColumns, column)
+    }
+
+    function isMoneyColumn(column) {
+        return contains(moneyColumns, column)
+    }
+
     function valueAt(row, column) {
         if (!tableView.model || column < 0)
             return undefined
@@ -38,8 +65,9 @@ Item {
     }
 
     function cellColor(row, column) {
+        const baseColor = row % 2 === 1 ? Theme.surfaceMuted : Theme.surface
         if (!showStatusColors)
-            return Theme.surface
+            return baseColor
 
         if (recordAmountColumn >= 0 && column === recordAmountColumn) {
             const amount = Number(valueAt(row, recordAmountColumn))
@@ -64,10 +92,15 @@ Item {
             if (!isNaN(expiry.getTime()) && expiry < new Date())
                 return Theme.expiredCell
         }
-        return Theme.surface
+        return baseColor
     }
 
     function displayValue(value, column) {
+        if (isMoneyColumn(column)) {
+            const n = Number(value)
+            return isNaN(n) ? (value === undefined || value === null ? "" : String(value))
+                            : qsTr("￥%1").arg(n.toFixed(2))
+        }
         if (!isDateColumn(column))
             return value === undefined || value === null ? "" : value
         const raw = String(value)
@@ -76,7 +109,7 @@ Item {
         const parsed = new Date(raw)
         if (isNaN(parsed.getTime()))
             return raw
-        return Qt.formatDateTime(parsed, "yyyy-MM-dd")
+        return Qt.formatDateTime(parsed, isDatetimeColumn(column) ? "yyyy-MM-dd HH:mm:ss" : "yyyy-MM-dd")
     }
 
     ColumnLayout {
@@ -91,7 +124,7 @@ Item {
             clip: true
             movableColumns: false
             columnWidthProvider: function(column) {
-                return root.isHidden(column) ? 0 : horizontalHeader.width / root.columnCount
+                return root.isHidden(column) ? 0 : horizontalHeader.width / root.visibleColumnCount
             }
 
             delegate: Rectangle {
@@ -102,7 +135,7 @@ Item {
 
                 color: Theme.headerBg
                 border.color: Theme.border
-                implicitWidth: horizontalHeader.width / root.columnCount
+                implicitWidth: horizontalHeader.width / root.visibleColumnCount
                 implicitHeight: horizontalHeader.height
                 visible: !root.isHidden(index)
 
@@ -110,6 +143,8 @@ Item {
                     anchors.centerIn: parent
                     text: headerDelegate.display
                     font.pixelSize: Theme.fontSmall
+                    font.weight: Font.DemiBold
+                    color: Theme.textSecondary
                     elide: Text.ElideRight
                 }
             }
@@ -120,8 +155,11 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
+            reuseItems: true
+            boundsBehavior: Flickable.StopAtBounds
+            rowHeightProvider: function() { return 36 }
             columnWidthProvider: function(column) {
-                return root.isHidden(column) ? 0 : horizontalHeader.width / root.columnCount
+                return root.isHidden(column) ? 0 : horizontalHeader.width / root.visibleColumnCount
             }
 
             delegate: Rectangle {
@@ -131,7 +169,7 @@ Item {
                 required property int column
                 required property var display
 
-                implicitWidth: root.isHidden(column) ? 0 : horizontalHeader.width / root.columnCount
+                implicitWidth: root.isHidden(column) ? 0 : horizontalHeader.width / root.visibleColumnCount
                 implicitHeight: 32
                 visible: !root.isHidden(column)
                 border.color: Theme.border
@@ -145,6 +183,7 @@ Item {
                     verticalAlignment: Text.AlignVCenter
                     elide: Text.ElideRight
                     font.pixelSize: Theme.fontSmall
+                    color: Theme.textPrimary
                 }
             }
 

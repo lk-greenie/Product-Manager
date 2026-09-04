@@ -23,6 +23,7 @@
         <file>qml/DataVisualization/SalesVisualization.qml</file>
         <file>qml/DataVisualization/ProfitVisualization.qml</file>
         <file>qml/DataVisualization/VisualizationPage.qml</file>
+        <file>qml/DataVisualization/PieChartItem.qml</file>
         <file>qml/DataVisualization/PieChart.qml</file>
         <file>qml/DataVisualization/BarChart.qml</file>
         <file>qml/DataVisualization/LineChart.qml</file>
@@ -32,15 +33,25 @@
         <file>qml/Components/PrimaryButton.qml</file>
         <file>qml/Components/SecondaryButton.qml</file>
         <file>qml/Components/NavButton.qml</file>
+        <file>qml/Components/NavIcon.qml</file>
         <file>qml/Components/StyledTextField.qml</file>
+        <file>qml/Components/StyledComboBox.qml</file>
+        <file>qml/Components/PageTitle.qml</file>
+        <file>qml/Components/PasswordField.qml</file>
         <file>qml/Components/AuthPage.qml</file>
         <file>qml/Components/DataTable.qml</file>
         <file>qml/Components/FilterBar.qml</file>
+        <file>qml/Components/NoticeDialog.qml</file>
+        <file>qml/Components/StatusLabel.qml</file>
+        <file>qml/Components/DatePickerField.qml</file>
+        <file>qml/Components/ServerSettingsPanel.qml</file>
+        <file>qml/Components/ConnectionSettingsWindow.qml</file>
         <file>qml/Services/qmldir</file>
         <file>qml/Services/BackendContract.qml</file>
         <file>qml/StockManagement/Components/LabeledField.qml</file>
         <file>qml/StockManagement/Components/LabeledComboBox.qml</file>
         <file>qml/StockManagement/Components/FormButtonRow.qml</file>
+        <file>qml/StockManagement/Components/LabeledValue.qml</file>
         <file>qml/StockManagement/Components/StatusLabel.qml</file>
         <file>images/favicon.ico</file>
     </qresource>

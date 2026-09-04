@@ -3,7 +3,7 @@
 #include <QDebug>
 
 namespace {
-const QString kConnectionName = QStringLiteral("ecjtu_market_connection");
+const QString kConnectionName = QStringLiteral("warehouse_connection");
 const QString kExpenseType = QStringLiteral("支出");
 }
 
@@ -108,6 +108,7 @@ bool TableDisplay::inCommodity(QString cat, QString cname, QString sum, QString 
     stockModel->select();
     checkModel->select();
     expenseModel->select();
+    emit dataChanged();
     return true;
 }
 
@@ -231,6 +232,7 @@ bool TableDisplay::outCommodity(QString cat, QString cname, QString sum, QString
     stockModel->select();
     checkModel->select();
     incomeModel->select();
+    emit dataChanged();
     return true;
 }
 
@@ -270,6 +272,7 @@ bool TableDisplay::setPrice(QString cat, QString cname, QString price)
         return false;
     }
     stockModel->select();
+    emit dataChanged();
     return true;
 }
 
@@ -302,5 +305,6 @@ bool TableDisplay::setLimits(QString cat, QString cname, QString up_sum, QString
         return false;
     }
     stockModel->select();
+    emit dataChanged();
     return true;
 }

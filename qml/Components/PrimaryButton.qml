@@ -15,8 +15,10 @@ Button {
     // 是否为幽灵（描边）外观
     property bool ghost: false
 
-    font.pixelSize: Theme.fontNormal
     implicitHeight: Theme.controlHeight
+    implicitWidth: Math.max(96, contentItem.implicitWidth + 28)
+    font.pixelSize: Theme.fontNormal
+    font.weight: Font.Medium
 
     // 文字：实心按钮白字；幽灵按钮主色字
     contentItem: Text {
@@ -26,7 +28,7 @@ Button {
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
         elide: Text.ElideRight
-        opacity: control.enabled ? 1.0 : 0.5
+        opacity: control.enabled ? 1.0 : 0.55
     }
 
     // 背景：hovered/down 时切换到更深的蓝
@@ -36,9 +38,9 @@ Button {
         border.width: control.ghost ? 1 : 0
         color: {
             if (control.ghost)
-                return (control.down || control.hovered) ? Theme.accentLight : "transparent"
+            return (control.down || control.hovered) ? Theme.primarySoft : "transparent"
             return (control.down || control.hovered) ? Theme.primaryDark : Theme.primary
         }
-        opacity: control.enabled ? 1.0 : 0.5
+        opacity: control.enabled ? 1.0 : 0.55
     }
 }

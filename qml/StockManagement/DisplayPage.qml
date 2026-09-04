@@ -10,10 +10,33 @@ Page{
     Layout.fillWidth: true
     Layout.fillHeight: true
 
+    background: Rectangle { color: Theme.appBackground }
+
     function openWindow(component) {
         const window = component.createObject(displayPage)
-        if (window)
+        if (window) {
+            const owner = displayPage.Window.window
+            window.transientParent = owner
+            window.x = owner.x + Math.round((owner.width - window.width) / 2)
+            window.y = owner.y + Math.round((owner.height - window.height) / 2)
             window.show()
+        }
+    }
+
+    property bool sortAscending: true
+
+    function applyStockSort() {
+        if (comboBox.currentIndex < 0)
+            return
+        TableDisplay.sortStock(catcomboBox.currentText, comboBox.currentText,
+                               sortAscending ? BackendContract.ascending : BackendContract.descending)
+    }
+
+    function refreshStockFilter() {
+        const sort = comboBox.currentIndex >= 0 ? comboBox.currentText : ""
+        const order = comboBox.currentIndex >= 0
+                ? (sortAscending ? BackendContract.ascending : BackendContract.descending) : ""
+        TableDisplay.displayC(catcomboBox.currentText, BackendContract.stockFlag, sort, order)
     }
 
     Component { id: addCategoryWindow; AddCat {} }
@@ -22,114 +45,155 @@ Page{
     Component { id: priceWindow; SetPrice {} }
     Component { id: limitsWindow; SetLimits {} }
 
+    Timer {
+        id: stockSearchDebounce
+        interval: 180
+        repeat: false
+        onTriggered: TableDisplay.proxyModel.setFilterFixedString(textField.text.trim())
+    }
+
+    Component {
+        id: commandMenuItem
+
+        MenuItem {
+            id: item
+            implicitHeight: Theme.controlHeight
+
+            contentItem: Text {
+                leftPadding: 12
+                rightPadding: 12
+                text: item.text
+                color: item.highlighted ? Theme.primaryDark : Theme.textPrimary
+                font.pixelSize: Theme.fontSmall
+                verticalAlignment: Text.AlignVCenter
+                elide: Text.ElideRight
+            }
+
+            background: Rectangle {
+                radius: Theme.radiusSmall
+                color: item.highlighted ? Theme.primarySoft : "transparent"
+            }
+        }
+    }
+
     ColumnLayout{
-        anchors.fill:parent
-        spacing: 0
+        anchors.fill: parent
+        anchors.leftMargin: Theme.pagePadding
+        anchors.rightMargin: Theme.pagePadding
+        anchors.topMargin: 0
+        anchors.bottomMargin: Theme.pagePadding
+        spacing: 12
 
-        // 顶部工具栏
-        ToolBar {
-            id:menubar
-            position: ToolBar.Header
+        // 顶部命令栏紧贴页面顶边，使用标准菜单栏承载可展开操作。
+        MenuBar {
+            id: commandBar
             Layout.fillWidth: true
-            Layout.preferredHeight: 35
-            RowLayout {
-                anchors.fill: parent
-                spacing: 0
+            Layout.preferredHeight: 44
+            background: Rectangle {
+                color: Theme.surface
+                border.color: Theme.border
+                border.width: 1
+                radius: Theme.radiusMedium
+            }
+            delegate: MenuBarItem {
+                id: menuBarItem
+                implicitWidth: 104
+                implicitHeight: commandBar.height
 
-                ToolButton {
-                    text: "管理"
-                    Layout.alignment: Qt.AlignLeft
-                    Layout.preferredWidth:  menubar.width/23
-                    Layout.fillHeight: true
-                    onClicked: manageMenu.open()
-                    Menu {
-                        id: manageMenu
-                        y: parent.height
-                        MenuItem {
-                            text: "添加分类";
-                            // 权限约定：分类维护要求 per<3
-                            onTriggered:{
-                                if (BackendContract.canAddCategory(loginManager.per))
-                                    displayPage.openWindow(addCategoryWindow)
-                                else
-                                    accessStatus.text = qsTr("当前角色没有添加分类权限")
-                            }
-                        }
-                        MenuSeparator {}
-                        MenuItem {
-                            text: "入库";
-                            // 权限约定：入库要求 per<3
-                            onTriggered: {
-                                if (BackendContract.canInOutStock(loginManager.per))
-                                    displayPage.openWindow(inboundWindow)
-                                else
-                                    accessStatus.text = qsTr("当前角色没有入库权限")
-                            }
-                        }
-                        MenuSeparator {}
-                        MenuItem {
-                            text: "出库";
-                            // 权限约定：出库要求 per<3
-                            onTriggered: {
-                                if (BackendContract.canInOutStock(loginManager.per))
-                                    displayPage.openWindow(outboundWindow)
-                                else
-                                    accessStatus.text = qsTr("当前角色没有出库权限")
-                            }
-                        }
-                    }
+                contentItem: Text {
+                    text: menuBarItem.text + qsTr("  ▾")
+                    color: menuBarItem.highlighted ? Theme.primaryDark : Theme.textPrimary
+                    font.pixelSize: Theme.fontNormal
+                    font.weight: Font.Medium
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
                 }
 
-                ToolSeparator {
-                    Layout.fillHeight:true
+                background: Rectangle {
+                    radius: Theme.radiusSmall
+                    color: menuBarItem.highlighted ? Theme.primarySoft : "transparent"
+                    border.color: menuBarItem.highlighted ? Theme.borderStrong : "transparent"
+                    border.width: menuBarItem.highlighted ? 1 : 0
+                }
+            }
+            // 顾客访客为只读角色，不显示顶部工具栏；店员只保留入库/出库，店主全部可用
+            visible: !BackendContract.isVisitor(loginManager.per)
+
+            Menu {
+                title: qsTr("管理")
+                // Menu.visible 会直接控制 Popup 可见性，不能用于菜单栏权限判断。
+                // 当前命令栏已对访客整体隐藏；店主/店员都可使用管理菜单。
+                enabled: BackendContract.canInOutStock(loginManager.per) || BackendContract.canAddCategory(loginManager.per)
+                width: 160
+                delegate: commandMenuItem
+                background: Rectangle {
+                    color: Theme.surface
+                    border.color: Theme.borderStrong
+                    border.width: 1
+                    radius: Theme.radiusSmall
                 }
 
-                ToolButton {
-                    text: "设置"
-                    Layout.alignment: Qt.AlignLeft
-                    Layout.preferredWidth:  menubar.width/23
-                    Layout.fillHeight: true
-                    onClicked: editMenu.open()
-                    Menu {
-                        id: editMenu
-                        y: parent.height
-                        MenuItem {
-                            text: "更改售价";
-                            // 权限约定：售价设置要求 per<2
-                            onTriggered: {
-                                if (BackendContract.canChangeStockSettings(loginManager.per))
-                                    displayPage.openWindow(priceWindow)
-                                else
-                                    accessStatus.text = qsTr("当前角色没有修改售价权限")
-                            }
-                        }
-                        MenuSeparator {}
-                        MenuItem {
-                            text: "更改警告值";
-                            // 权限约定：阈值设置要求 per<2
-                            onTriggered: {
-                                if (BackendContract.canChangeStockSettings(loginManager.per))
-                                    displayPage.openWindow(limitsWindow)
-                                else
-                                    accessStatus.text = qsTr("当前角色没有修改警告阈值权限")
-                            }
-                        }
-                    }
+                MenuItem {
+                    text: qsTr("添加分类")
+                    visible: BackendContract.canAddCategory(loginManager.per)
+                    onTriggered: displayPage.openWindow(addCategoryWindow)
                 }
-                Item {Layout.fillWidth: true}
+                MenuSeparator { visible: BackendContract.canAddCategory(loginManager.per) }
+                MenuItem {
+                    text: qsTr("入库")
+                    visible: BackendContract.canInOutStock(loginManager.per)
+                    onTriggered: displayPage.openWindow(inboundWindow)
+                }
+                MenuSeparator { visible: BackendContract.canInOutStock(loginManager.per) }
+                MenuItem {
+                    text: qsTr("出库")
+                    visible: BackendContract.canInOutStock(loginManager.per)
+                    onTriggered: displayPage.openWindow(outboundWindow)
+                }
+            }
+
+            Menu {
+                title: qsTr("设置")
+                // 店员保留禁用状态的菜单标题作为权限提示，菜单内容不可展开。
+                enabled: BackendContract.canChangeStockSettings(loginManager.per)
+                width: 160
+                delegate: commandMenuItem
+                background: Rectangle {
+                    color: Theme.surface
+                    border.color: Theme.borderStrong
+                    border.width: 1
+                    radius: Theme.radiusSmall
+                }
+
+                MenuItem {
+                    text: qsTr("更改售价")
+                    onTriggered: displayPage.openWindow(priceWindow)
+                }
+                MenuSeparator {}
+                MenuItem {
+                    text: qsTr("更改警告值")
+                    onTriggered: displayPage.openWindow(limitsWindow)
+                }
             }
         }
 
-        RowLayout{
-            id:filter
-            Layout.preferredHeight: displayPage.height/15
+        PageTitle {
+            title: BackendContract.isVisitor(loginManager.per) ? qsTr("库存商品") : qsTr("库存管理")
+            subtitle: BackendContract.isVisitor(loginManager.per)
+                      ? qsTr("浏览商品分类、售价、库存数量及保质期信息")
+                      : qsTr("查看库存状态、保质期和库存预警")
+        }
+
+            RowLayout {
+                id: filter
+            Layout.preferredHeight: 58
             Layout.fillWidth: true
-            spacing:0
+            spacing: 12
 
             Item{Layout.fillWidth: true}
 
-            RowLayout{
-                Layout.preferredWidth: displayPage.width*0.15
+            RowLayout {
+                Layout.preferredWidth: 310
                 Layout.fillHeight: true
                 spacing:5
 
@@ -140,59 +204,45 @@ Page{
                     Layout.alignment: Qt.AlignVCenter
                 }
 
-                ComboBox {
+                StyledComboBox {
                     id: comboBox
-                    Layout.preferredHeight: sortLabel.height
+                    Layout.preferredWidth: 170
+                    Layout.preferredHeight: Theme.controlHeight
                     Layout.alignment: Qt.AlignVCenter
                     model: [BackendContract.sortByPurchasePrice,
                            BackendContract.sortBySalePrice,
                            BackendContract.sortByQuantity]
                     currentIndex: -1
-                    displayText: currentIndex>=0?currentText:"请选择"
-                    onCurrentTextChanged: {
-                        if(group.checkedButton){
-                            console.log(group.checkedButton.text)
-                            TableDisplay.sortStock(catcomboBox.currentText,currentText,group.checkedButton.text)
-                        }
+                    displayText: currentIndex >= 0 ? currentText : qsTr("选择排序")
+                    onActivated: displayPage.applyStockSort()
+                }
+                ToolButton {
+                    id: orderButton
+                    visible: comboBox.currentIndex >= 0
+                    Layout.preferredWidth: 34
+                    Layout.preferredHeight: Theme.controlHeight
+                    text: displayPage.sortAscending ? qsTr("↑") : qsTr("↓")
+                    font.pixelSize: 20
+                    Accessible.name: displayPage.sortAscending ? qsTr("升序") : qsTr("降序")
+                    ToolTip.visible: hovered
+                    ToolTip.text: Accessible.name
+                    onClicked: {
+                        displayPage.sortAscending = !displayPage.sortAscending
+                        displayPage.applyStockSort()
+                    }
+                    background: Rectangle {
+                        radius: Theme.radiusSmall
+                        color: orderButton.hovered ? Theme.primarySoft : Theme.surface
+                        border.color: Theme.border
+                        border.width: 1
                     }
                 }
             }
 
-            Item{Layout.preferredWidth: displayPage.width*0.1}
-
-            RowLayout {
-                Layout.preferredWidth: displayPage.width*0.15
-                Layout.fillHeight: true
-                spacing:5
-
-                ButtonGroup {
-                    id: group;
-                    exclusive: true
-                    onCheckedButtonChanged: {
-                        if(group.checkedButton){
-                            console.log(group.checkedButton.text)
-                            TableDisplay.sortStock(catcomboBox.currentText,comboBox.currentText,group.checkedButton.text)
-                        }
-                    }
-                }
-                CheckBox {
-                    text: "升序";
-                    font.pixelSize: Theme.fontNormal;
-                    ButtonGroup.group: group
-                    Layout.alignment: Qt.AlignVCenter
-                }
-                CheckBox {
-                    text: "降序";
-                    font.pixelSize: Theme.fontNormal;
-                    ButtonGroup.group: group
-                    Layout.alignment: Qt.AlignVCenter
-                }
-            }
-
-            Item{Layout.preferredWidth: displayPage.width*0.1}
+            Item{Layout.preferredWidth: 10}
 
             RowLayout{
-                Layout.preferredWidth: displayPage.width*0.15
+                Layout.preferredWidth: 210
                 Layout.fillHeight: true
                 spacing:5
 
@@ -203,91 +253,57 @@ Page{
                     Layout.alignment: Qt.AlignVCenter
                 }
 
-                ComboBox {
+                StyledComboBox {
                     id: catcomboBox
-                    Layout.preferredHeight: catlabel.height
+                    Layout.preferredWidth: 190
+                    Layout.preferredHeight: Theme.controlHeight
                     Layout.alignment: Qt.AlignVCenter
-                    model:TableDisplay.catModel
-                    currentIndex: -1
-                    displayText: currentIndex>=0?currentText:"请选择"
-                    onCurrentTextChanged: {
-                        var sort
-                        var flag
-                        if(comboBox.currentIndex!==-1)sort=comboBox.currentText;
-                        if(group.checkedButton)flag=group.checkedButton.text;
-                        TableDisplay.displayC(catcomboBox.currentText, BackendContract.stockFlag, sort, flag)
-                    }
+                    model:TableDisplay.allCategories()
+                    currentIndex: 0
+                    displayText: currentIndex >= 0 ? currentText : qsTr("选择分类")
+                    onActivated: displayPage.refreshStockFilter()
                 }
             }
 
-            Item{Layout.preferredWidth: displayPage.width*0.1}
+            Item{Layout.preferredWidth: 10}
 
             StyledTextField {
                 id: textField
-                Layout.preferredWidth: displayPage.width*0.15
+                Layout.preferredWidth: 220
                 Layout.alignment: Qt.AlignVCenter
                 placeholderText: qsTr("搜索（商品名）")
-                onTextChanged: {
-                    TableDisplay.proxyModel.setFilterFixedString(text)
-                }
+                onTextChanged: stockSearchDebounce.restart()
+                onAccepted: stockSearchDebounce.restart()
             }
 
             Item{Layout.fillWidth: true}
         }
 
-        // 库存表：复用 DataTable，保留进价色标列(2)与日期列(3/4)格式化
+        Connections {
+            target: TableDisplay
+            function onDataChanged() {
+                catcomboBox.model = TableDisplay.allCategories()
+                displayPage.refreshStockFilter()
+            }
+        }
+
+            // 库存表使用 stock 表原始十列，分类编号列由关系模型显示为中文分类名称。
         DataTable {
             id: tabview
             Layout.fillWidth: true
             Layout.fillHeight: true
 
             model: TableDisplay.proxyModel
-            dateColumns: [3, 4]
-            hiddenColumns: BackendContract.canViewPrivateStockColumns(loginManager.per) ? [] : [2, 7, 8]
-            warningQuantityColumn: 6
-            upperLimitColumn: 7
-            lowerLimitColumn: 8
-            expiryDateColumns: [3, 4]
+            dateColumns: [4, 5]
+            moneyColumns: [3, 6]
+            // 0=库存编号、1=分类名称、2=商品名称、3=进货单价、4/5=日期、6=销售单价、7=库存数量、8/9=库存上下限。
+            hiddenColumns: BackendContract.canViewPrivateStockColumns(loginManager.per) ? [0] : [0, 3, 8, 9]
+            warningQuantityColumn: 7
+            upperLimitColumn: 8
+            lowerLimitColumn: 9
+            expiryDateColumns: [4, 5]
             showStatusColors: BackendContract.canViewPrivateStockColumns(loginManager.per)
-            columnCount: BackendContract.canViewPrivateStockColumns(loginManager.per) ? 9 : 6
-        }
-
-        // 底部状态栏
-        Rectangle {
-            id: statusBar
-            Layout.fillWidth: true
-            Layout.preferredHeight: Theme.statusBarHeight
-            color: Theme.statusBar
-
-            Row {
-                anchors.fill: parent
-                spacing: 10
-
-                // 状态信息
-                Text {
-                    id: accessStatus
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: qsTr("状态：正常")
-                    color: Theme.textPrimary
-                    font.pixelSize: Theme.fontSmall
-                }
-
-                // 时间显示
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: Qt.formatDateTime(new Date(), "hh:mm:ss")
-                    color: Theme.textOnPrimary
-                    font.pixelSize: Theme.fontSmall
-
-                    // 更新时间
-                    Timer {
-                        interval: 1000
-                        running: true
-                        repeat: true
-                        onTriggered: parent.text = Qt.formatDateTime(new Date(), "hh:mm:ss")
-                    }
-                }
-            }
+            columnCount: 10
         }
     }
 }

@@ -81,6 +81,28 @@ bool AppConfig::boolValue(const QString &key, bool defaultValue)
     return config.value(key, defaultValue).toBool();
 }
 
+bool AppConfig::setValues(const QVariantMap &values, QString *errorMessage)
+{
+    if (!s_loaded) {
+        if (errorMessage)
+            *errorMessage = s_errorMessage.isEmpty()
+                    ? QStringLiteral("配置文件尚未加载") : s_errorMessage;
+        return false;
+    }
+
+    QSettings config(s_filePath, QSettings::IniFormat);
+    for (auto it = values.cbegin(); it != values.cend(); ++it)
+        config.setValue(it.key(), it.value());
+    config.sync();
+    if (config.status() != QSettings::NoError) {
+        if (errorMessage)
+            *errorMessage = QStringLiteral("保存配置文件失败：%1")
+                    .arg(QDir::toNativeSeparators(s_filePath));
+        return false;
+    }
+    return true;
+}
+
 QString AppConfig::resolveFilePath()
 {
     const QString configuredPath = qEnvironmentVariable("QML_PRODUCT_MANAGER_CONFIG").trimmed();

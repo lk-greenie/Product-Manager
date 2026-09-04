@@ -1,5 +1,6 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
+import QtQuick.Window 2.15
 import QtQuick.Layouts 1.15
 import QtCore
 import "../Components"
@@ -50,6 +51,7 @@ AuthPage {
                 return
             }
             TableDisplay.setCurrentPermission(loginManager.per)
+            serverSettings.refreshConnectionState()
             if (rememberMeBox.checked) {
                 settings.username = usernameField.text
                 settings.password = encrypt(passwordField.text) // 加密存储
@@ -62,6 +64,8 @@ AuthPage {
             loginSuccess()
             mainMenuWindow = mainMenuComponent.createObject(null)
             if (mainMenuWindow) {
+                mainMenuWindow.x = Math.round((Screen.width - mainMenuWindow.width) / 2)
+                mainMenuWindow.y = Math.round((Screen.height - mainMenuWindow.height) / 2)
                 mainMenuWindow.loginWindow = enter
                 mainMenuWindow.show()
                 enter.hide()
@@ -81,6 +85,7 @@ AuthPage {
         Label {
             text: "登录"
             font.pixelSize: Theme.fontTitle
+            color: Theme.textPrimary
             Layout.alignment: Qt.AlignHCenter
             Layout.topMargin: 80
         }
@@ -94,11 +99,10 @@ AuthPage {
             Layout.preferredHeight: Theme.controlHeight
         }
 
-        StyledTextField {
+        PasswordField {
             id: passwordField
             placeholderText: "密码"
             text: loginPage.decrypt(settings.password)
-            echoMode: TextInput.Password
             Layout.fillWidth: true
             Layout.preferredHeight: Theme.controlHeight
 
@@ -117,9 +121,23 @@ AuthPage {
 
         Label {
             id: errorLabel
-            color: "red"
+            color: Theme.danger
             Layout.fillWidth: true
             wrapMode: Text.Wrap
+
+            Timer {
+                id: errorTimer
+                interval: 3000
+                repeat: false
+                onTriggered: errorLabel.text = ""
+            }
+
+            onTextChanged: {
+                if (text.length > 0)
+                    errorTimer.restart()
+                else
+                    errorTimer.stop()
+            }
         }
 
         CheckBox {

@@ -49,6 +49,8 @@ public:
     // 登录成功后 QML（LoginPage）直接调用 openDatabase() 确保业务库已连接，
     // 再调用 init_Cat()，因此二者必须为 Q_INVOKABLE。
     Q_INVOKABLE bool openDatabase();//连接数据库函数（构造时调用一次，登录时 QML 再调用一次）
+    Q_INVOKABLE void disconnectDatabase();
+    Q_INVOKABLE QString databaseError() const { return m_lastDatabaseError; }
     Q_INVOKABLE bool init_Cat();//初始化分类函数
     Q_INVOKABLE QString addCat(QString cat);//添加分类函数
     Q_INVOKABLE bool inCommodity(QString cat,QString cname,QString sum,QString bid,QString m_date,QString e_date);//入库函数
@@ -62,6 +64,8 @@ public:
     Q_INVOKABLE QString sumCat(QString cat);//统计分类数函数
     Q_INVOKABLE QString sumC(QString cat,QString cname);//统计商品数函数
     Q_INVOKABLE QString sumCheck(QString cat,QString flag);//统计开支函数
+    Q_INVOKABLE QStringList allCategories();
+    Q_INVOKABLE QStringList allProducts(const QString &category);
     Q_INVOKABLE bool filterRecords(const QString &flag, const QString &category,
                                    const QString &name, const QString &startDate,
                                    const QString &endDate);
@@ -70,13 +74,28 @@ public:
                                            const QString &endDate);
     Q_INVOKABLE QVariantMap productInfo(const QString &category, const QString &name);
     Q_INVOKABLE QVariantList chartBreakdown(const QString &metric, const QString &category,
-                                            const QString &startDate, const QString &endDate);
+                                             const QString &name, const QString &startDate,
+                                             const QString &endDate);
     Q_INVOKABLE QVariantList chartTrend(const QString &metric, const QString &category,
                                         const QString &name, const QString &scale,
                                         const QString &startDate, const QString &endDate);
     Q_INVOKABLE bool sortStock(QString cat,QString sort,QString flag);//排序库存函数
+    Q_INVOKABLE bool sortRecords(const QString &flag, const QString &order);
     Q_INVOKABLE void setCurrentPermission(int permission);
     Q_INVOKABLE int currentPermission() const { return m_currentPermission; }
+    bool isDatabaseConnected() const { return DB.isOpen(); }
+
+    // 供 AI 小助手按需查询数据库（函数调用工具），避免把全部数据一次性塞进 prompt。
+    // 均依据当前权限（m_currentPermission）区分：店主(1)/店员(2) 返回完整数据，
+    // 顾客访客(3) 仅返回库存管理页面公开的商品信息。
+    QString aiCategories() const;
+    QString aiInventory() const;
+    QString aiTransactions() const;
+    QString aiFinancialSummary() const;
+
+signals:
+    // 数据写入后通知 QML 重新同步分类、库存和记录筛选器。
+    void dataChanged();
 
 private:
     int getcat_id(const QString &cat);
@@ -99,6 +118,7 @@ private:
     bool canChangeSettings() const { return m_currentPermission == 1; }
 
     QSqlDatabase  DB; //数据库连接
+    QString m_lastDatabaseError;
     int m_currentPermission = 3;
     // 指针显式初始化为 nullptr，防止构造器 openDatabase() 失败时 QML 读到垃圾地址
     QSqlRelationalTableModel  *catModel     = nullptr;//分类数据模型

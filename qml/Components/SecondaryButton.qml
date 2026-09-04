@@ -7,8 +7,10 @@ import QtQuick.Controls 2.15
 Button {
     id: control
 
-    font.pixelSize: Theme.fontNormal
     implicitHeight: Theme.controlHeight
+    implicitWidth: Math.max(96, contentItem.implicitWidth + 28)
+    font.pixelSize: Theme.fontNormal
+    font.weight: Font.Medium
 
     contentItem: Text {
         text: control.text
@@ -17,13 +19,14 @@ Button {
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
         elide: Text.ElideRight
-        opacity: control.enabled ? 1.0 : 0.5
+        opacity: control.enabled ? 1.0 : 0.55
     }
 
     background: Rectangle {
         radius: Theme.radiusSmall
-        // 悬停/按下时变浅灰，否则白色（复刻登录页“注册”按钮观感）
         color: (control.down || control.hovered) ? Theme.statusBar : Theme.surface
-        opacity: control.enabled ? 1.0 : 0.5
+        border.color: control.activeFocus ? Theme.primary : Theme.border
+        border.width: 1
+        opacity: control.enabled ? 1.0 : 0.55
     }
 }

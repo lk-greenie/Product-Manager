@@ -18,6 +18,7 @@ AuthPage {
         Label {
             text: "注册"
             font.pixelSize: Theme.fontTitle
+            color: Theme.textPrimary
             Layout.alignment: Qt.AlignHCenter
             Layout.topMargin: 80
         }
@@ -30,10 +31,9 @@ AuthPage {
             Layout.preferredHeight: Theme.controlHeight
         }
 
-        StyledTextField {
+        PasswordField {
             id: passwordField
             placeholderText: "密码"
-            echoMode: TextInput.Password
             Layout.fillWidth: true
             Layout.preferredHeight: Theme.controlHeight
 
@@ -71,9 +71,23 @@ AuthPage {
 
         Label {
             id: errorLabel
-            color: "red"
+            color: Theme.danger
             Layout.fillWidth: true
             wrapMode: Text.Wrap
+
+            Timer {
+                id: errorTimer
+                interval: 3000
+                repeat: false
+                onTriggered: errorLabel.text = ""
+            }
+
+            onTextChanged: {
+                if (text.length > 0)
+                    errorTimer.restart()
+                else
+                    errorTimer.stop()
+            }
         }
 
         RowLayout {

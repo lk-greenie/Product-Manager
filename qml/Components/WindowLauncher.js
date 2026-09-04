@@ -16,8 +16,14 @@ function openWindow(parentObj, qmlPath) {
     function create() {
         var obj = component.createObject(parentObj)
         if (obj === null) {
-            console.log("创建组件对象失败：" + qmlPath)
+            console.log("创建窗口失败：" + qmlPath)
             return null
+        }
+        var owner = parentObj && parentObj.Window ? parentObj.Window.window : null
+        if (owner) {
+            obj.transientParent = owner
+            obj.x = owner.x + Math.round((owner.width - obj.width) / 2)
+            obj.y = owner.y + Math.round((owner.height - obj.height) / 2)
         }
         obj.show()
         return obj
@@ -34,13 +40,13 @@ function openWindow(parentObj, qmlPath) {
             if (component.status === 1) {        // Ready
                 create()
             } else if (component.status === 3) { // Error
-                console.log("无法打开 " + qmlPath + "：" + component.errorString())
+                console.log("无法打开窗口 " + qmlPath + "：" + component.errorString())
             }
         })
         return null
     } else {
         // Error(3) 或 Null(0)
-        console.log("无法打开 " + qmlPath + "：" + component.errorString())
+        console.log("无法打开窗口 " + qmlPath + "：" + component.errorString())
         return null
     }
 }

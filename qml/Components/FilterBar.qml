@@ -11,14 +11,26 @@ RowLayout {
     property bool showSummary: false
     property string summaryText: ""
     property string summaryLabel: qsTr("总额：")
-    property string searchPlaceholder: qsTr("搜索商品名")
+    property string searchPlaceholder: qsTr("搜索（商品名）")
+    property bool showOrderButton: false
+    property bool orderAscending: false
+    property string orderToolTip: qsTr("切换排序")
     readonly property string currentCategory: categoryCombo.currentText
     readonly property string currentName: searchField.text.trim()
-    readonly property string startDate: startDateField.text.trim()
-    readonly property string endDate: endDateField.text.trim()
+    readonly property string startDate: startDateField.displayText
+    readonly property string endDate: endDateField.displayText
 
     signal filterRequested(string category, string name, string startDate, string endDate)
     signal filterReset()
+    signal orderToggled()
+
+    // 搜索输入使用短防抖，避免每个字符都触发 SQL 模型过滤和汇总查询。
+    Timer {
+        id: searchDebounce
+        interval: 180
+        repeat: false
+        onTriggered: bar.requestFilter()
+    }
 
     function validDate(value) {
         if (value === "")
@@ -39,56 +51,82 @@ RowLayout {
         filterRequested(currentCategory, currentName, startDate, endDate)
     }
 
-    spacing: 8
+    spacing: 10
 
-    Label { text: qsTr("分类：") }
+    Label {
+        text: qsTr("分类：")
+        color: Theme.textSecondary
+        font.pixelSize: Theme.fontSmall
+    }
 
-    ComboBox {
+    StyledComboBox {
         id: categoryCombo
-        Layout.preferredWidth: 130
-        currentIndex: -1
+        Layout.preferredWidth: 150
+        Layout.preferredHeight: Theme.controlHeight
+        currentIndex: 0
         displayText: currentIndex >= 0 ? currentText : qsTr("全部")
         onActivated: bar.requestFilter()
     }
 
-    TextField {
+    ToolButton {
+        id: orderButton
+        visible: bar.showOrderButton
+        text: bar.orderAscending ? qsTr("↑") : qsTr("↓")
+        Accessible.name: bar.orderToolTip
+        ToolTip.visible: hovered
+        ToolTip.text: bar.orderToolTip
+        Layout.preferredWidth: 34
+        Layout.preferredHeight: Theme.controlHeight
+        onClicked: bar.orderToggled()
+        background: Rectangle {
+            radius: Theme.radiusSmall
+            color: orderButton.hovered ? Theme.primarySoft : Theme.surface
+            border.color: Theme.border
+            border.width: 1
+        }
+    }
+
+    StyledTextField {
         id: searchField
         visible: bar.showSearch
-        Layout.preferredWidth: 150
+        Layout.preferredWidth: 190
+        Layout.preferredHeight: Theme.compactControlHeight
         placeholderText: bar.searchPlaceholder
+        onTextChanged: searchDebounce.restart()
         onAccepted: bar.requestFilter()
     }
 
-    TextField {
+    DatePickerField {
         id: startDateField
         visible: bar.showDates
-        Layout.preferredWidth: 120
-        placeholderText: qsTr("起始日期 yyyy-MM-dd")
-        inputMask: "0000-00-00;_"
-        onAccepted: bar.requestFilter()
+        Layout.preferredWidth: 132
+        Layout.preferredHeight: Theme.compactControlHeight
+        placeholderText: qsTr("起始日期")
+        onDatePicked: function(){ bar.requestFilter() }
     }
 
-    TextField {
+    DatePickerField {
         id: endDateField
         visible: bar.showDates
-        Layout.preferredWidth: 120
-        placeholderText: qsTr("终止日期 yyyy-MM-dd")
-        inputMask: "0000-00-00;_"
-        onAccepted: bar.requestFilter()
+        Layout.preferredWidth: 132
+        Layout.preferredHeight: Theme.compactControlHeight
+        placeholderText: qsTr("终止日期")
+        onDatePicked: function(){ bar.requestFilter() }
     }
 
-    Button {
+    PrimaryButton {
         text: qsTr("筛选")
         onClicked: bar.requestFilter()
     }
 
-    Button {
+    SecondaryButton {
         text: qsTr("重置")
         onClicked: {
-            categoryCombo.currentIndex = -1
+            categoryCombo.currentIndex = 0
             searchField.clear()
-            startDateField.clear()
-            endDateField.clear()
+            searchDebounce.stop()
+            startDateField.selectedDate = null
+            endDateField.selectedDate = null
             validationLabel.text = ""
             bar.filterReset()
         }
@@ -98,11 +136,12 @@ RowLayout {
         visible: bar.showSummary
         text: bar.summaryLabel + bar.summaryText
         font.bold: true
+        color: Theme.textPrimary
     }
 
     Label {
         id: validationLabel
-        color: "#b91c1c"
+        color: Theme.danger
         Layout.fillWidth: true
         elide: Text.ElideRight
     }

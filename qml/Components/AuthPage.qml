@@ -2,7 +2,7 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15
 import "."   // 导入同目录的 Components 模块，使 Theme 单例可见
 
-// 登录类页面外壳：顶部 #0099ff 条 + 垂直三段渐变背景 + 透明背景 Page。
+// 登录类页面外壳：浅色表面 + 顶部强调条，保持登录、注册和错误页的统一层级。
 // LoginPage / RegisterPage / ErrorPage 复用。
 //
 // 用法：将页面内容作为默认子元素放入本组件，会被塞进渐变面板内居中区域。
@@ -12,37 +12,34 @@ import "."   // 导入同目录的 Components 模块，使 Theme 单例可见
 //   default property alias content —— 默认内容（放入渐变面板内）
 Page {
     id: authPage
-    width: 300
-    height: 360
+    implicitWidth: 420
+    implicitHeight: 430
 
-    // 默认子元素放入渐变面板
+    // 默认子元素放入统一的浅色内容面板
     default property alias content: contentHolder.data
 
     background: Rectangle {
-        color: "transparent" // 背景透明，交由渐变面板呈现
+        color: Theme.surface
+        radius: Theme.radiusLarge
+        border.color: Theme.border
+        border.width: 1
     }
 
-    // 顶部主色条
+    // 仅保留很窄的浅蓝分隔线，让深色标题栏到内容区过渡更柔和。
     Rectangle {
-        width: parent.width
-        height: 10
-        color: Theme.primary
+        width: parent.width - 2
+        height: 3
+        color: Theme.primarySoft
         anchors.top: parent.top
+        anchors.horizontalCenter: parent.horizontalCenter
         z: 1
     }
 
-    // 垂直三段渐变面板
-    Rectangle {
+    // 内容承载区，页面内容负责自己的布局和内边距。
+    Item {
         anchors.fill: parent
-        radius: Theme.radiusLarge
-        gradient: Gradient {
-            orientation: Gradient.Vertical
-            GradientStop { position: 0.0; color: Theme.primary }
-            GradientStop { position: 0.5; color: Theme.accentLight }
-            GradientStop { position: 1.0; color: Theme.primary }
-        }
+        anchors.margins: 1
 
-        // 内容承载区（子元素填入此处）
         Item {
             id: contentHolder
             anchors.fill: parent

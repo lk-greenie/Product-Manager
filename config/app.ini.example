@@ -3,7 +3,8 @@ name=qmlProductManager
 organizationName=ECJTU
 organizationDomain=ecjtu.local
 controlsStyle=Basic
-graphicsApi=OpenGL
+# 场景图渲染后端：OpenGL 需可用 GPU；无 GPU/远程环境请用 Software（软件光栅化，最稳）
+graphicsApi=Software
 icon=:/images/favicon.ico
 qmlEntry=qrc:/qml/Login&Register/Enter.qml
 
@@ -19,7 +20,7 @@ password=请填写用户数据库密码
 driver=QMYSQL
 host=127.0.0.1
 port=3306
-name=ecjtu_market
+name=warehouse
 username=root
 password=请填写业务数据库密码
 

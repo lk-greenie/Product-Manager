@@ -16,11 +16,14 @@ RowLayout {
     Label {
         Layout.preferredWidth: root.labelWidth
         text: root.labelText
+        color: Theme.textSecondary
+        font.pixelSize: Theme.fontSmall
     }
 
-    ComboBox {
+    StyledComboBox {
         id: comboBox
         Layout.fillWidth: true
+        Layout.preferredHeight: Theme.controlHeight
         model: root.model
         currentIndex: -1
         displayText: currentIndex >= 0 ? currentText : qsTr("请选择")

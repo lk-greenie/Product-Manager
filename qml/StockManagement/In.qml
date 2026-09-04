@@ -2,12 +2,16 @@ import QtQuick 2.15
 import QtQuick.Window 2.15
 import QtQuick.Layouts
 import "Components"
+import "../Components"
 
 Window {
     id: window
     visible: true
-    width: 360
-    height: 420
+    width: 480
+    height: 520
+    minimumWidth: 440
+    minimumHeight: 480
+    color: Theme.appBackground
     title: qsTr("入库")
 
     function validDate(value) {
@@ -15,10 +19,42 @@ Window {
                 && !isNaN(new Date(value + "T00:00:00").getTime())
     }
 
+    Shortcut {
+        sequence: "Return"
+        onActivated: confirm()
+    }
+
+    function confirm() {
+        if (categoryField.currentIndex < 0 || nameField.text.trim() === ""
+                || !/^\d+$/.test(quantityField.text.trim())
+                || Number(quantityField.text) <= 0
+                || isNaN(Number(priceField.text)) || Number(priceField.text) <= 0
+                || !window.validDate(manufactureField.text.trim())
+                || !window.validDate(expiryField.text.trim())
+                || manufactureField.text > expiryField.text) {
+            statusLabel.text = qsTr("请完整填写有效信息：数量和进价必须为正数，日期为 yyyy-MM-dd")
+            return
+        }
+        if (TableDisplay.inCommodity(categoryField.currentText, nameField.text,
+                                      quantityField.text, priceField.text,
+                                      manufactureField.text, expiryField.text)) {
+            notice.messageText = qsTr("操作成功")
+            notice.isError = false
+            notice.onOk = function(){ window.close(); window.destroy(); }
+            notice.open()
+        } else {
+            notice.messageText = qsTr("入库失败，请检查数据或权限")
+            notice.isError = true
+            notice.open()
+        }
+    }
+
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 24
-        spacing: 12
+        anchors.margins: Theme.pagePadding
+        spacing: Theme.sectionSpacing
+
+         PageTitle { title: qsTr("入库"); subtitle: qsTr("登记商品批次、成本和保质期"); centered: true }
 
         LabeledComboBox {
             id: categoryField
@@ -35,30 +71,15 @@ Window {
         StatusLabel { id: statusLabel; Layout.fillWidth: true }
 
         FormButtonRow {
-            onAccepted: {
-                if (categoryField.currentIndex < 0 || nameField.text.trim() === ""
-                        || !/^\d+$/.test(quantityField.text.trim())
-                        || Number(quantityField.text) <= 0
-                        || isNaN(Number(priceField.text)) || Number(priceField.text) <= 0
-                        || !window.validDate(manufactureField.text.trim())
-                        || !window.validDate(expiryField.text.trim())
-                        || manufactureField.text > expiryField.text) {
-                    statusLabel.text = qsTr("请完整填写有效信息：数量和进价必须为正数，日期为 yyyy-MM-dd")
-                    return
-                }
-                if (TableDisplay.inCommodity(categoryField.currentText, nameField.text,
-                                              quantityField.text, priceField.text,
-                                              manufactureField.text, expiryField.text)) {
-                    window.close()
-                    window.destroy()
-                } else {
-                    statusLabel.text = qsTr("入库失败，请检查数据或权限")
-                }
-            }
+            onAccepted: window.confirm()
             onRejected: {
                 window.close()
                 window.destroy()
             }
         }
+    }
+
+    NoticeDialog {
+        id: notice
     }
 }

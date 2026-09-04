@@ -11,6 +11,7 @@
 #include <QQuickWindow>
 #include <QSGRendererInterface>
 #include "appconfig.h"
+#include "serverconnectionsettings.h"
 #include "enter.h"
 #include "tabledisplay.h"
 #include "deepseekclient.h"
@@ -61,8 +62,13 @@ int main(int argc, char *argv[])
                                                                 QStringLiteral("qmlProductManager")));
 
     const QString graphicsApi = AppConfig::stringValue(QStringLiteral("application/graphicsApi"),
-                                                       QStringLiteral("OpenGL"));
-    if (graphicsApi.compare(QStringLiteral("OpenGL"), Qt::CaseInsensitive) == 0)
+                                                       QStringLiteral("Software"));
+    // 图表面板与整体 UI 依赖场景图；在无可用 GPU/OpenGL 环境下强制 OpenGL 会报
+    // “QRhiGles2: Failed to make context current” 并导致图表区域空白。
+    // 默认改用 Software（软件光栅化，无需显卡），也可在 app.ini 显式配置。
+    if (graphicsApi.compare(QStringLiteral("Software"), Qt::CaseInsensitive) == 0)
+        QQuickWindow::setGraphicsApi(QSGRendererInterface::Software);
+    else if (graphicsApi.compare(QStringLiteral("OpenGL"), Qt::CaseInsensitive) == 0)
         QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
 
     installLogFileHandler();
@@ -81,13 +87,17 @@ int main(int argc, char *argv[])
     // 先构造两个后端对象
     Enter loginManager;
     TableDisplay display;
+    ServerConnectionSettings serverSettings(&loginManager, &display);
     DeepSeekClient aiManager;
+    // AI 小助手需要读取库存/交易数据，注入业务数据提供者
+    aiManager.setDataProvider(&display);
 
     QQmlApplicationEngine engine;
     // 在 engine.load() 之前注册全部上下文属性，
     // 保证 QML 首次加载即可访问 loginManager 与 TableDisplay
     engine.rootContext()->setContextProperty("loginManager", &loginManager);
     engine.rootContext()->setContextProperty("TableDisplay", &display);
+    engine.rootContext()->setContextProperty("serverSettings", &serverSettings);
     engine.rootContext()->setContextProperty("aiManager", &aiManager);
     QObject::connect(&loginManager, &Enter::currentUserChanged, &aiManager, [&loginManager, &aiManager] {
         aiManager.setCurrentUser(loginManager.userId());

@@ -1,46 +1,62 @@
 pragma Singleton
 import QtQuick 2.15
 
-// 全局主题单例：集中所有硬编码颜色、字号、圆角、尺寸。
-// 通过 qmldir 声明为单例（singleton Theme 1.0 Theme.qml）。
-// 使用方式：import "../Components" 后直接引用 Theme.primary 等。
+// 全局主题单例：集中颜色、字号、圆角和尺寸，页面只引用主题令牌。
 QtObject {
     id: theme
 
-    // ---------- 主色系 ----------
-    readonly property color primary: "#0099ff"        // 主色蓝（导航栏、主按钮、顶部条）
-    readonly property color primaryDark: "#008deb"     // 主色悬停/按下更深的蓝
-    readonly property color accentLight: "lightblue"   // 渐变中段浅蓝
+    // 现代浅色工作台色板
+    readonly property color appBackground: "#f4f7fb"
+    readonly property color sidebar: "#152238"
+    readonly property color sidebarHover: "#213554"
+    readonly property color primary: "#2563eb"
+    readonly property color primaryDark: "#1d4ed8"
+    readonly property color primarySoft: "#dbeafe"
+    readonly property color accentLight: "#eff6ff"
 
-    // ---------- 中性色 ----------
-    readonly property color headerBg: "#f0f0f0"        // 表头背景
-    readonly property color border: "#cccccc"          // 单元格/表头边框
-    readonly property color statusBar: "lightgrey"     // 底部状态栏 / 次按钮悬停
-    readonly property color surface: "white"           // 输入框/单元格底色
-    readonly property color textOnPrimary: "white"     // 主色上的文字（白字）
-    readonly property color textPrimary: "black"       // 常规文字
+    // 中性色
+    readonly property color headerBg: "#eef3f8"
+    readonly property color border: "#d8e0ea"
+    readonly property color borderStrong: "#c2cfdd"
+    readonly property color statusBar: "#e8eef5"
+    readonly property color surface: "#ffffff"
+    readonly property color surfaceMuted: "#f8fafc"
+    readonly property color textOnPrimary: "#ffffff"
+    readonly property color textPrimary: "#172033"
+    readonly property color textSecondary: "#526176"
+    readonly property color textMuted: "#7a8799"
 
-    // ---------- 状态色 ----------
-    readonly property color warningCell: "#fff3bf"
-    readonly property color expiredCell: "#ffd6d6"
-    readonly property color expenseRow: "#ffe2e2"
-    readonly property color incomeRow: "#dcfce7"
+    // 状态色
+    readonly property color warningCell: "#fff7d6"
+    readonly property color expiredCell: "#ffe4e6"
+    readonly property color expenseRow: "#fff1f2"
+    readonly property color incomeRow: "#ecfdf3"
+    readonly property color success: "#15803d"
+    readonly property color warning: "#b45309"
+    readonly property color danger: "#b42318"
 
-    // ---------- 图表色 ----------
+    // 图表色
     readonly property var chartColors: ["#2563eb", "#7c3aed", "#ea580c", "#0891b2", "#4d7c0f", "#c026d3", "#475569", "#ca8a04"]
 
-    // ---------- 字号 ----------
-    readonly property int fontSmall: 14
-    readonly property int fontNormal: 16
+    // 字号
+    readonly property int fontSmall: 13
+    readonly property int fontNormal: 14
     readonly property int fontLarge: 18
-    readonly property int fontTitle: 24
+    readonly property int fontTitle: 26
+    readonly property int fontSection: 16
 
-    // ---------- 圆角 ----------
-    readonly property int radiusSmall: 5               // 按钮/输入框
-    readonly property int radiusLarge: 10              // 卡片/导航项/登录面板
+    // 圆角
+    readonly property int radiusSmall: 6
+    readonly property int radiusMedium: 8
+    readonly property int radiusLarge: 12
 
-    // ---------- 常用尺寸 ----------
-    readonly property int labelWidth: 50               // 表单 label 统一宽度
-    readonly property int controlHeight: 30            // 输入框/按钮统一高度
-    readonly property int statusBarHeight: 20          // 底部状态栏高度
+    // 常用尺寸
+    readonly property int labelWidth: 78
+    readonly property int controlHeight: 36
+    readonly property int compactControlHeight: 32
+    readonly property int statusBarHeight: 28
+    readonly property int pagePadding: 20
+    readonly property int sectionSpacing: 14
+    readonly property int navExpandedWidth: 224
+    readonly property int navCollapsedWidth: 64
 }

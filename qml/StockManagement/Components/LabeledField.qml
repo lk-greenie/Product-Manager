@@ -15,6 +15,8 @@ RowLayout {
     Label {
         Layout.preferredWidth: root.labelWidth
         text: root.labelText
+        color: Theme.textSecondary
+        font.pixelSize: Theme.fontSmall
     }
 
     StyledTextField {
