@@ -9,20 +9,12 @@ icon=:/images/favicon.ico
 qmlEntry=qrc:/qml/Login&Register/Enter.qml
 
 [userDatabase]
+# 地址、端口、账号、密码和数据库名由 config/database_server_config.enc 加密保存。
 driver=QMYSQL
-host=127.0.0.1
-port=3306
-name=user_management
-username=root
-password=请填写用户数据库密码
 
 [businessDatabase]
+# 请通过界面的“生成加密配置”或“导入加密配置”管理本数据库服务器信息。
 driver=QMYSQL
-host=127.0.0.1
-port=3306
-name=warehouse
-username=root
-password=请填写业务数据库密码
 
 [ai]
 apiKey=请填写DeepSeek密钥

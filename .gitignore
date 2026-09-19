@@ -72,8 +72,27 @@ compile_commands.json
 .uic/
 /build*/
 build/
+/dist/
+/release-package/
+/Generated/
+/.tmp_dummy/
+
+# Profiling and smoke-test output
+/profiler/server_connection_smoke_build/
+/profiler/traces/*.qtd
+*.qtd
 
 # Local tools and runtime state
 .claude/
 user_config.ini
 config/app.ini
+config/login.ini
+config/login_credentials.enc
+config/database_server_config.enc
+tests/build-server-connection-settings/
+tests/**/test-results.txt
+*.log
+
+# Release staging must never be committed from a source branch
+/build/release-package-build/
+/build/release-package/

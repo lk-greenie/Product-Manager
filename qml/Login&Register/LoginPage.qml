@@ -2,34 +2,13 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Window 2.15
 import QtQuick.Layouts 1.15
-import QtCore
 import "../Components"
 import ".." as App
 
 // 登录页：复用 AuthPage 外壳、StyledTextField 输入框、PrimaryButton/SecondaryButton 按钮。
-// 保留 Settings 记住密码、loginUser 流程、登录成功后 openDatabase()/init_Cat()。
+// 记住状态由 C++ 写入 Windows 加密文件，登录成功后再进入业务库初始化流程。
 AuthPage {
     id: loginPage
-
-    // 使用Settings组件持久化存储
-    Settings {
-        id: settings
-        category: "qmlProductManager"
-        property string username: ""
-        property string password: ""
-        property bool rememberMe: false
-    }
-
-    // 加密函数
-    function encrypt(text) {
-        // 这里使用简单的Base64加密，实际项目中应使用更安全的加密方式
-        return Qt.btoa(text)
-    }
-
-    // 解密函数
-    function decrypt(text) {
-        return Qt.atob(text)
-    }
 
     property alias username: usernameField.text
     property alias password: passwordField.text
@@ -52,15 +31,8 @@ AuthPage {
             }
             TableDisplay.setCurrentPermission(loginManager.per)
             serverSettings.refreshConnectionState()
-            if (rememberMeBox.checked) {
-                settings.username = usernameField.text
-                settings.password = encrypt(passwordField.text) // 加密存储
-                settings.rememberMe = true
-            } else {
-                settings.username = ""
-                settings.password = ""
-                settings.rememberMe = false
-            }
+            serverSettings.saveRememberedLogin(usernameField.text, passwordField.text,
+                                               rememberMeBox.checked)
             loginSuccess()
             mainMenuWindow = mainMenuComponent.createObject(null)
             if (mainMenuWindow) {
@@ -93,7 +65,7 @@ AuthPage {
         StyledTextField {
             id: usernameField
             placeholderText: "用户名"
-            text: settings.username
+            text: serverSettings.rememberedUsername
             Layout.topMargin: 30
             Layout.fillWidth: true
             Layout.preferredHeight: Theme.controlHeight
@@ -102,7 +74,7 @@ AuthPage {
         PasswordField {
             id: passwordField
             placeholderText: "密码"
-            text: loginPage.decrypt(settings.password)
+            text: serverSettings.rememberedPassword
             Layout.fillWidth: true
             Layout.preferredHeight: Theme.controlHeight
 
@@ -144,7 +116,7 @@ AuthPage {
             id: rememberMeBox
             Layout.alignment: Qt.AlignHCenter
             text: qsTr("记住密码")
-            checked: settings.rememberMe
+            checked: serverSettings.rememberLogin
         }
 
         RowLayout {

@@ -35,6 +35,7 @@ RESOURCES += qml.qrc
 # 该项目的 shadow build 目录位于 build/<kit>/，因此从 Makefile.Debug 到项目根目录为 ../../。
 win32 {
     QMAKE_POST_LINK += $$QMAKE_COPY_DIR \"..\\..\\config\" \"$(dir $(DESTDIR_TARGET))config\"
+    LIBS += -lcrypt32
 }
 
 QML_IMPORT_PATH =

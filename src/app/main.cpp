@@ -54,6 +54,10 @@ int main(int argc, char *argv[])
     QApplication app(argc, argv);
     AppConfig::load();
 
+    QString encryptedConfigError;
+    if (!ServerConnectionSettings::importDefaultEncryptedConfig(&encryptedConfigError))
+        qWarning().noquote() << encryptedConfigError;
+
     QCoreApplication::setOrganizationName(AppConfig::stringValue(QStringLiteral("application/organizationName"),
                                                                  QStringLiteral("ECJTU")));
     QCoreApplication::setOrganizationDomain(AppConfig::stringValue(QStringLiteral("application/organizationDomain"),
@@ -84,7 +88,7 @@ int main(int argc, char *argv[])
     app.setWindowIcon(QIcon(AppConfig::stringValue(QStringLiteral("application/icon"),
                                                     QStringLiteral(":/images/favicon.ico"))));
 
-    // 先构造两个后端对象
+    // 先导入 config 中的加密服务器配置，再构造两个会在初始化时连接数据库的后端对象。
     Enter loginManager;
     TableDisplay display;
     ServerConnectionSettings serverSettings(&loginManager, &display);

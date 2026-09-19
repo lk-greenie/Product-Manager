@@ -6,11 +6,11 @@ Window {
     id: root
 
     width: 440
-    height: 330
+    height: 350
     minimumWidth: 390
-    minimumHeight: 300
+    minimumHeight: 330
     visible: false
-    title: qsTr("数据库服务器设置")
+    title: qsTr("数据库服务器加密配置")
     color: Theme.appBackground
     flags: Qt.Dialog | Qt.WindowTitleHint | Qt.WindowCloseButtonHint
 
@@ -37,6 +37,7 @@ Window {
             ServerSettingsPanel {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                popupHost: root
             }
         }
     }

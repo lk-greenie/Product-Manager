@@ -35,7 +35,7 @@ Page {
 
             PageTitle {
                 title: qsTr("我的")
-                subtitle: qsTr("账户信息、注册用户与数据库服务器设置")
+                subtitle: qsTr("账户信息、注册用户与数据库服务器加密配置")
             }
 
             Rectangle {

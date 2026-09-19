@@ -9,6 +9,21 @@ namespace {
 QString s_filePath;
 QString s_errorMessage;
 bool s_loaded = false;
+QVariantMap s_databaseServerValues;
+
+bool isDatabaseServerKey(const QString &key)
+{
+    return key == QStringLiteral("userDatabase/host")
+            || key == QStringLiteral("userDatabase/port")
+            || key == QStringLiteral("userDatabase/username")
+            || key == QStringLiteral("userDatabase/password")
+            || key == QStringLiteral("userDatabase/name")
+            || key == QStringLiteral("businessDatabase/host")
+            || key == QStringLiteral("businessDatabase/port")
+            || key == QStringLiteral("businessDatabase/username")
+            || key == QStringLiteral("businessDatabase/password")
+            || key == QStringLiteral("businessDatabase/name");
+}
 
 QSettings settings()
 {
@@ -21,6 +36,7 @@ void AppConfig::load()
     s_filePath = resolveFilePath();
     s_errorMessage.clear();
     s_loaded = false;
+    s_databaseServerValues.clear();
 
     const QFileInfo configFile(s_filePath);
     if (!configFile.exists()) {
@@ -53,10 +69,26 @@ QString AppConfig::filePath()
     return s_filePath;
 }
 
+QString AppConfig::configDirectory()
+{
+    if (!s_filePath.isEmpty())
+        return QFileInfo(s_filePath).absolutePath();
+    return QDir(QCoreApplication::applicationDirPath()).filePath(QStringLiteral("config"));
+}
+
+QString AppConfig::databaseServerConfigPath()
+{
+    return QDir(configDirectory()).filePath(QStringLiteral("database_server_config.enc"));
+}
+
 QString AppConfig::stringValue(const QString &key, const QString &defaultValue)
 {
     if (!s_loaded)
         return defaultValue;
+
+    // 服务器凭据不再从 app.ini 回退读取，避免旧版明文配置继续被使用。
+    if (isDatabaseServerKey(key))
+        return s_databaseServerValues.value(key, defaultValue).toString().trimmed();
 
     QSettings config = settings();
     return config.value(key, defaultValue).toString().trimmed();
@@ -90,6 +122,14 @@ bool AppConfig::setValues(const QVariantMap &values, QString *errorMessage)
         return false;
     }
 
+    for (auto it = values.cbegin(); it != values.cend(); ++it) {
+        if (isDatabaseServerKey(it.key())) {
+            if (errorMessage)
+                *errorMessage = QStringLiteral("数据库服务器信息必须通过加密配置文件管理");
+            return false;
+        }
+    }
+
     QSettings config(s_filePath, QSettings::IniFormat);
     for (auto it = values.cbegin(); it != values.cend(); ++it)
         config.setValue(it.key(), it.value());
@@ -103,11 +143,25 @@ bool AppConfig::setValues(const QVariantMap &values, QString *errorMessage)
     return true;
 }
 
+void AppConfig::setDatabaseServerValues(const QVariantMap &values)
+{
+    s_databaseServerValues = values;
+}
+
+bool AppConfig::hasDatabaseServerConfig()
+{
+    return !s_databaseServerValues.isEmpty();
+}
+
 QString AppConfig::resolveFilePath()
 {
     const QString configuredPath = qEnvironmentVariable("QML_PRODUCT_MANAGER_CONFIG").trimmed();
-    if (!configuredPath.isEmpty())
-        return QDir::cleanPath(configuredPath);
+    if (!configuredPath.isEmpty()) {
+        const QFileInfo configuredFile(QDir::cleanPath(configuredPath));
+        // 即使使用环境变量覆盖，也要求配置文件位于名为 config 的目录中。
+        if (configuredFile.dir().dirName().compare(QStringLiteral("config"), Qt::CaseInsensitive) == 0)
+            return configuredFile.absoluteFilePath();
+    }
 
     return QDir(QCoreApplication::applicationDirPath()).filePath(QStringLiteral("config/app.ini"));
 }

@@ -145,7 +145,7 @@ bool Enter::openDatabase()
     }
 
     if (QSqlDatabase::contains(kConnectionName)) {
-        m_db = QSqlDatabase::database(kConnectionName);
+        m_db = QSqlDatabase::database(kConnectionName, false);
     } else {
         m_db = QSqlDatabase::addDatabase(driver, kConnectionName);
     }
@@ -204,7 +204,7 @@ bool Enter::registerUser(const QString &username, const QString &password, const
         m_lastError = "用户数据库连接不存在！";
         return false;
     }
-    QSqlDatabase activeDb = QSqlDatabase::database(kConnectionName);
+    QSqlDatabase activeDb = QSqlDatabase::database(kConnectionName, false);
     if (!activeDb.isOpen()) {
         m_lastError = "用户数据库未打开！";
         return false;
@@ -247,7 +247,7 @@ bool Enter::loginUser(const QString &username, const QString &password)
         m_lastError = "用户数据库连接不存在！";
         return false;
     }
-    QSqlDatabase activeDb = QSqlDatabase::database(kConnectionName);
+    QSqlDatabase activeDb = QSqlDatabase::database(kConnectionName, false);
     if (!activeDb.isOpen()) {
         m_lastError = "用户数据库未打开！";
         return false;
@@ -333,7 +333,7 @@ bool Enter::updateProfile(const QString &oldPassword, const QString &newEmail,
         m_lastError = QStringLiteral("用户数据库连接不存在！");
         return false;
     }
-    QSqlDatabase activeDb = QSqlDatabase::database(kConnectionName);
+    QSqlDatabase activeDb = QSqlDatabase::database(kConnectionName, false);
     if (!activeDb.isOpen()) {
         m_lastError = QStringLiteral("用户数据库未打开！");
         return false;
@@ -414,7 +414,7 @@ bool Enter::refreshUsers()
         emit usersChanged();
         return false;
     }
-    const QSqlDatabase activeDb = QSqlDatabase::database(kConnectionName);
+    const QSqlDatabase activeDb = QSqlDatabase::database(kConnectionName, false);
     if (!activeDb.isOpen()) {
         m_lastError = QStringLiteral("用户数据库未打开！");
         emit usersChanged();
@@ -465,7 +465,7 @@ bool Enter::updateUserPermission(int userId, int permission)
         m_lastError = QStringLiteral("用户数据库连接不存在！");
         return false;
     }
-    const QSqlDatabase activeDb = QSqlDatabase::database(kConnectionName);
+    const QSqlDatabase activeDb = QSqlDatabase::database(kConnectionName, false);
     if (!activeDb.isOpen()) {
         m_lastError = QStringLiteral("用户数据库未打开！");
         return false;

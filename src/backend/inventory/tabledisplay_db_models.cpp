@@ -88,7 +88,9 @@ TableDisplay::~TableDisplay()
 // 返回业务数据库活跃连接
 QSqlDatabase TableDisplay::db() const
 {
-    return QSqlDatabase::database(kConnectionName);
+    // open=false 是关键：用户手动断开后，查询只会在关闭的连接上失败，
+    // 不会因取得连接对象而触发 Qt 的隐式重连。
+    return QSqlDatabase::database(kConnectionName, false);
 }
 
 bool TableDisplay::openDatabase()
@@ -121,7 +123,7 @@ bool TableDisplay::openDatabase()
     }
 
     if (QSqlDatabase::contains(kConnectionName)) {
-        DB = QSqlDatabase::database(kConnectionName);
+        DB = QSqlDatabase::database(kConnectionName, false);
     } else {
         DB = QSqlDatabase::addDatabase(driver, kConnectionName);
     }

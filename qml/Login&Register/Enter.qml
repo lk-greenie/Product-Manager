@@ -85,7 +85,7 @@ Window {
                         text: "⚙"
                         flat: true
                         padding: 0
-                        Accessible.name: qsTr("数据库服务器设置")
+                        Accessible.name: qsTr("数据库服务器加密配置")
                         ToolTip.visible: hovered
                         ToolTip.text: Accessible.name
                         onClicked: serverSettingsWindow.showFor(enter)

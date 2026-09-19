@@ -34,7 +34,7 @@ QString normalizeChatEndpoint(QString url)
 // 若对话标题仍为默认“新对话”（或为空），用首条用户消息（约 30 字）作为标题。
 void updateConversationTitleIfDefault(qlonglong conversationId, const QString &message)
 {
-    QSqlQuery query(QSqlDatabase::database(kUserConnection));
+    QSqlQuery query(QSqlDatabase::database(kUserConnection, false));
     query.prepare("SELECT title FROM ai_conversations WHERE id=?");
     query.addBindValue(conversationId);
     if (!query.exec() || !query.next())
@@ -51,7 +51,7 @@ void updateConversationTitleIfDefault(qlonglong conversationId, const QString &m
         title += QStringLiteral("…");
     }
 
-    QSqlQuery update(QSqlDatabase::database(kUserConnection));
+    QSqlQuery update(QSqlDatabase::database(kUserConnection, false));
     update.prepare("UPDATE ai_conversations SET title=? WHERE id=?");
     update.addBindValue(title);
     update.addBindValue(conversationId);
@@ -165,12 +165,12 @@ void DeepSeekClient::setBusyStatus(const QString &status)
 
 bool DeepSeekClient::ensureTables()
 {
-    if (!QSqlDatabase::contains(kUserConnection) || !QSqlDatabase::database(kUserConnection).isOpen()) {
+    if (!QSqlDatabase::contains(kUserConnection) || !QSqlDatabase::database(kUserConnection, false).isOpen()) {
         setError(QStringLiteral("用户数据库未连接"));
         return false;
     }
 
-    QSqlQuery query(QSqlDatabase::database(kUserConnection));
+    QSqlQuery query(QSqlDatabase::database(kUserConnection, false));
     if (!query.exec("CREATE TABLE IF NOT EXISTS ai_conversations ("
                     "id BIGINT AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, "
                     "title VARCHAR(100) NOT NULL DEFAULT '新对话', "
@@ -199,7 +199,7 @@ void DeepSeekClient::refreshConversations()
     if (!ensureTables() || m_userId <= 0)
         return;
 
-    QSqlQuery query(QSqlDatabase::database(kUserConnection));
+    QSqlQuery query(QSqlDatabase::database(kUserConnection, false));
     query.prepare("SELECT id, title FROM ai_conversations WHERE user_id=? ORDER BY updated_at DESC");
     query.addBindValue(m_userId);
     if (!query.exec()) {
@@ -221,7 +221,7 @@ qlonglong DeepSeekClient::createConversation(const QString &title)
         return 0;
     }
 
-    QSqlQuery query(QSqlDatabase::database(kUserConnection));
+    QSqlQuery query(QSqlDatabase::database(kUserConnection, false));
     query.prepare("INSERT INTO ai_conversations(user_id,title) VALUES(?,?)");
     query.addBindValue(m_userId);
     query.addBindValue(title.trimmed().isEmpty() ? QStringLiteral("新对话") : title.trimmed());
@@ -240,7 +240,7 @@ bool DeepSeekClient::loadConversation(qlonglong conversationId)
     if (!ensureTables() || m_userId <= 0)
         return false;
 
-    QSqlQuery ownership(QSqlDatabase::database(kUserConnection));
+    QSqlQuery ownership(QSqlDatabase::database(kUserConnection, false));
     ownership.prepare("SELECT 1 FROM ai_conversations WHERE id=? AND user_id=?");
     ownership.addBindValue(conversationId);
     ownership.addBindValue(m_userId);
@@ -249,7 +249,7 @@ bool DeepSeekClient::loadConversation(qlonglong conversationId)
         return false;
     }
 
-    QSqlQuery query(QSqlDatabase::database(kUserConnection));
+    QSqlQuery query(QSqlDatabase::database(kUserConnection, false));
     query.prepare("SELECT role, content FROM ai_messages WHERE conversation_id=? ORDER BY id");
     query.addBindValue(conversationId);
     if (!query.exec()) {
@@ -268,7 +268,7 @@ bool DeepSeekClient::deleteConversation(qlonglong conversationId)
 {
     if (!ensureTables() || m_userId <= 0)
         return false;
-    QSqlQuery query(QSqlDatabase::database(kUserConnection));
+    QSqlQuery query(QSqlDatabase::database(kUserConnection, false));
     query.prepare("DELETE FROM ai_conversations WHERE id=? AND user_id=?");
     query.addBindValue(conversationId);
     query.addBindValue(m_userId);
@@ -283,7 +283,7 @@ bool DeepSeekClient::deleteConversation(qlonglong conversationId)
 
 bool DeepSeekClient::saveMessage(qlonglong conversationId, const QString &role, const QString &content)
 {
-    QSqlQuery query(QSqlDatabase::database(kUserConnection));
+    QSqlQuery query(QSqlDatabase::database(kUserConnection, false));
     query.prepare("INSERT INTO ai_messages(conversation_id,role,content) VALUES(?,?,?)");
     query.addBindValue(conversationId);
     query.addBindValue(role);

@@ -4,7 +4,120 @@
 #include "enter.h"
 #include "tabledisplay.h"
 
+#include <QFile>
+#include <QFileInfo>
+#include <QDir>
+#include <QDebug>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QSaveFile>
 #include <QStringList>
+
+#ifdef Q_OS_WIN
+#include <windows.h>
+#include <wincrypt.h>
+#endif
+
+namespace {
+const QByteArray kEncryptedConfigHeader("QPM_DATABASE_SERVER_CONFIG_V1\n");
+const QByteArray kRememberedLoginHeader("QPM_REMEMBERED_LOGIN_V1\n");
+
+QByteArray protectForCurrentWindowsUser(const QByteArray &plainText, QString *errorMessage)
+{
+#ifdef Q_OS_WIN
+    DATA_BLOB input{};
+    input.cbData = static_cast<DWORD>(plainText.size());
+    input.pbData = reinterpret_cast<BYTE *>(const_cast<char *>(plainText.constData()));
+
+    DATA_BLOB output{};
+    if (!CryptProtectData(&input, L"qmlProductManager database server config", nullptr,
+                          nullptr, nullptr, CRYPTPROTECT_UI_FORBIDDEN, &output)) {
+        if (errorMessage)
+            *errorMessage = QStringLiteral("Windows 加密服务失败（错误码 %1）").arg(GetLastError());
+        return {};
+    }
+
+    const QByteArray encrypted(reinterpret_cast<const char *>(output.pbData),
+                               static_cast<qsizetype>(output.cbData));
+    LocalFree(output.pbData);
+    return encrypted;
+#else
+    Q_UNUSED(plainText)
+    if (errorMessage)
+        *errorMessage = QStringLiteral("当前平台不支持 Windows 加密配置文件");
+    return {};
+#endif
+}
+
+QByteArray unprotectForCurrentWindowsUser(const QByteArray &encrypted, QString *errorMessage)
+{
+#ifdef Q_OS_WIN
+    DATA_BLOB input{};
+    input.cbData = static_cast<DWORD>(encrypted.size());
+    input.pbData = reinterpret_cast<BYTE *>(const_cast<char *>(encrypted.constData()));
+
+    DATA_BLOB output{};
+    if (!CryptUnprotectData(&input, nullptr, nullptr, nullptr, nullptr,
+                            CRYPTPROTECT_UI_FORBIDDEN, &output)) {
+        if (errorMessage)
+            *errorMessage = QStringLiteral("无法解密配置文件（请使用生成该文件的 Windows 用户导入，错误码 %1）")
+                    .arg(GetLastError());
+        return {};
+    }
+
+    const QByteArray plainText(reinterpret_cast<const char *>(output.pbData),
+                               static_cast<qsizetype>(output.cbData));
+    LocalFree(output.pbData);
+    return plainText;
+#else
+    Q_UNUSED(encrypted)
+    if (errorMessage)
+        *errorMessage = QStringLiteral("当前平台不支持 Windows 解密配置文件");
+    return {};
+#endif
+}
+
+QJsonObject databaseObjectFromValues(const QVariantMap &values, const QString &prefix)
+{
+    return {
+        {QStringLiteral("host"), values.value(prefix + QStringLiteral("host")).toString()},
+        {QStringLiteral("port"), values.value(prefix + QStringLiteral("port")).toInt()},
+        {QStringLiteral("username"), values.value(prefix + QStringLiteral("username")).toString()},
+        {QStringLiteral("password"), values.value(prefix + QStringLiteral("password")).toString()},
+        {QStringLiteral("name"), values.value(prefix + QStringLiteral("name")).toString()}
+    };
+}
+
+bool appendDatabaseValues(const QJsonObject &database, const QString &prefix, QVariantMap *values,
+                          QString *errorMessage)
+{
+    const QStringList requiredKeys{
+        QStringLiteral("host"), QStringLiteral("username"), QStringLiteral("password"),
+        QStringLiteral("name")
+    };
+    for (const QString &key : requiredKeys) {
+        if (!database.contains(key) || !database.value(key).isString()) {
+            if (errorMessage)
+                *errorMessage = QStringLiteral("加密配置文件缺少 %1 数据库的 %2 字段")
+                        .arg(prefix, key);
+            return false;
+        }
+    }
+    if (!database.contains(QStringLiteral("port")) || !database.value(QStringLiteral("port")).isDouble()) {
+        if (errorMessage)
+            *errorMessage = QStringLiteral("加密配置文件缺少 %1 数据库的端口")
+                    .arg(prefix);
+        return false;
+    }
+
+    values->insert(prefix + QStringLiteral("host"), database.value(QStringLiteral("host")).toString());
+    values->insert(prefix + QStringLiteral("port"), database.value(QStringLiteral("port")).toInt());
+    values->insert(prefix + QStringLiteral("username"), database.value(QStringLiteral("username")).toString());
+    values->insert(prefix + QStringLiteral("password"), database.value(QStringLiteral("password")).toString());
+    values->insert(prefix + QStringLiteral("name"), database.value(QStringLiteral("name")).toString());
+    return true;
+}
+}
 
 ServerConnectionSettings::ServerConnectionSettings(Enter *loginManager,
                                                    TableDisplay *tableDisplay,
@@ -13,22 +126,43 @@ ServerConnectionSettings::ServerConnectionSettings(Enter *loginManager,
 {
     m_statusMessage = connected()
             ? QStringLiteral("数据库服务器已连接")
-            : QStringLiteral("数据库服务器未连接，可修改地址后手动连接");
+            : AppConfig::hasDatabaseServerConfig()
+              ? QStringLiteral("已导入加密数据库服务器配置，可手动连接")
+              : QStringLiteral("未导入加密数据库服务器配置");
+
+    QString rememberedLoginError;
+    if (!loadRememberedLogin(&rememberedLoginError))
+        qWarning().noquote() << rememberedLoginError;
 }
 
-QString ServerConnectionSettings::host() const
+bool ServerConnectionSettings::importDefaultEncryptedConfig(QString *errorMessage)
 {
-    return AppConfig::stringValue(QStringLiteral("userDatabase/host"));
+    QVariantMap values;
+    if (!readEncryptedConfig(AppConfig::databaseServerConfigPath(), &values, errorMessage))
+        return false;
+    AppConfig::setDatabaseServerValues(values);
+    return true;
 }
 
-int ServerConnectionSettings::port() const
+QString ServerConnectionSettings::encryptedConfigPath() const
 {
-    return AppConfig::intValue(QStringLiteral("userDatabase/port"));
+    const QString path = AppConfig::databaseServerConfigPath();
+    return AppConfig::hasDatabaseServerConfig() && QFileInfo::exists(path) ? path : QString();
 }
 
-QString ServerConnectionSettings::username() const
+QString ServerConnectionSettings::rememberedUsername() const
 {
-    return AppConfig::stringValue(QStringLiteral("userDatabase/username"));
+    return m_rememberedUsername;
+}
+
+QString ServerConnectionSettings::rememberedPassword() const
+{
+    return m_rememberedPassword;
+}
+
+bool ServerConnectionSettings::rememberLogin() const
+{
+    return m_rememberLogin;
 }
 
 bool ServerConnectionSettings::connected() const
@@ -43,46 +177,131 @@ QString ServerConnectionSettings::statusMessage() const
     return m_statusMessage;
 }
 
-bool ServerConnectionSettings::saveSettings(const QString &hostValue, int portValue,
-                                            const QString &usernameValue,
-                                            const QString &passwordValue)
+bool ServerConnectionSettings::importEncryptedConfig(const QUrl &fileUrl)
 {
-    const QString normalizedHost = hostValue.trimmed();
-    const QString normalizedUsername = usernameValue.trimmed();
-    if (normalizedHost.isEmpty()) {
-        setStatusMessage(QStringLiteral("请输入数据库服务器地址"));
-        return false;
-    }
-    if (portValue < 1 || portValue > 65535) {
-        setStatusMessage(QStringLiteral("端口必须在 1 到 65535 之间"));
-        return false;
-    }
-    if (normalizedUsername.isEmpty()) {
-        setStatusMessage(QStringLiteral("请输入数据库服务器账号"));
+    const QString sourcePath = fileUrl.toLocalFile();
+    if (sourcePath.isEmpty()) {
+        setStatusMessage(QStringLiteral("请选择本机上的加密数据库服务器配置文件"));
         return false;
     }
 
     QString error;
-    QVariantMap values{
-        {QStringLiteral("userDatabase/host"), normalizedHost},
-        {QStringLiteral("userDatabase/port"), portValue},
-        {QStringLiteral("userDatabase/username"), normalizedUsername},
-        {QStringLiteral("businessDatabase/host"), normalizedHost},
-        {QStringLiteral("businessDatabase/port"), portValue},
-        {QStringLiteral("businessDatabase/username"), normalizedUsername}
-    };
-    // 密码框为空时保留原配置，避免在仅修改地址或端口时意外清空密码。
-    if (!passwordValue.isEmpty()) {
-        values.insert(QStringLiteral("userDatabase/password"), passwordValue);
-        values.insert(QStringLiteral("businessDatabase/password"), passwordValue);
-    }
-    if (!AppConfig::setValues(values, &error)) {
+    QVariantMap values;
+    if (!readEncryptedConfig(sourcePath, &values, &error)) {
         setStatusMessage(error);
         return false;
     }
 
+    QFile sourceFile(sourcePath);
+    if (!sourceFile.open(QIODevice::ReadOnly)) {
+        setStatusMessage(QStringLiteral("无法读取配置文件：%1").arg(sourceFile.errorString()));
+        return false;
+    }
+    const QByteArray encryptedContents = sourceFile.readAll();
+    sourceFile.close();
+
+    const QString destinationPath = AppConfig::databaseServerConfigPath();
+    if (!QDir().mkpath(AppConfig::configDirectory())) {
+        setStatusMessage(QStringLiteral("无法创建配置目录：%1").arg(AppConfig::configDirectory()));
+        return false;
+    }
+
+    QSaveFile destinationFile(destinationPath);
+    if (!destinationFile.open(QIODevice::WriteOnly) || destinationFile.write(encryptedContents) != encryptedContents.size()
+            || !destinationFile.commit()) {
+        setStatusMessage(QStringLiteral("无法保存加密配置文件到：%1").arg(destinationPath));
+        return false;
+    }
+
+    AppConfig::setDatabaseServerValues(values);
     emit settingsChanged();
-    setStatusMessage(QStringLiteral("服务器地址已保存到配置文件"));
+    setStatusMessage(QStringLiteral("已导入加密数据库服务器配置：%1")
+                     .arg(QDir::toNativeSeparators(destinationPath)));
+    return true;
+}
+
+bool ServerConnectionSettings::generateEncryptedConfig(const QString &host, int port,
+                                                        const QString &username, const QString &password,
+                                                        const QString &userDatabaseName,
+                                                        const QString &businessDatabaseName)
+{
+    const QString normalizedHost = host.trimmed();
+    const QString normalizedUsername = username.trimmed();
+    QVariantMap values{
+        {QStringLiteral("userDatabase/host"), normalizedHost},
+        {QStringLiteral("userDatabase/port"), port},
+        {QStringLiteral("userDatabase/username"), normalizedUsername},
+        {QStringLiteral("userDatabase/password"), password},
+        {QStringLiteral("userDatabase/name"), userDatabaseName.trimmed()},
+        {QStringLiteral("businessDatabase/host"), normalizedHost},
+        {QStringLiteral("businessDatabase/port"), port},
+        {QStringLiteral("businessDatabase/username"), normalizedUsername},
+        {QStringLiteral("businessDatabase/password"), password},
+        {QStringLiteral("businessDatabase/name"), businessDatabaseName.trimmed()}
+    };
+
+    QString error;
+    const QString destinationPath = AppConfig::databaseServerConfigPath();
+    if (!writeEncryptedConfig(destinationPath, values, &error)) {
+        setStatusMessage(error);
+        return false;
+    }
+
+    AppConfig::setDatabaseServerValues(values);
+    emit settingsChanged();
+    setStatusMessage(QStringLiteral("已生成并导入加密数据库服务器配置：%1")
+                     .arg(QDir::toNativeSeparators(destinationPath)));
+    return true;
+}
+
+bool ServerConnectionSettings::saveRememberedLogin(const QString &username, const QString &password,
+                                                    bool remember)
+{
+    removeLegacyLoginSettingsFile();
+    const QString filePath = rememberedLoginFilePath();
+    if (!remember) {
+        if (QFileInfo::exists(filePath) && !QFile::remove(filePath))
+            return false;
+        m_rememberedUsername.clear();
+        m_rememberedPassword.clear();
+        m_rememberLogin = false;
+        emit rememberedLoginChanged();
+        return true;
+    }
+
+    const QString normalizedUsername = username.trimmed();
+    if (normalizedUsername.isEmpty() || password.isEmpty())
+        return false;
+    if (!QDir().mkpath(AppConfig::configDirectory()))
+        return false;
+
+    const QJsonObject object{
+        {QStringLiteral("format"), QStringLiteral("qmlProductManager.rememberedLogin.v1")},
+        {QStringLiteral("username"), normalizedUsername},
+        {QStringLiteral("password"), password}
+    };
+    QString encryptionError;
+    const QByteArray encrypted = protectForCurrentWindowsUser(
+        QJsonDocument(object).toJson(QJsonDocument::Compact), &encryptionError);
+    if (encrypted.isEmpty()) {
+        qWarning().noquote() << encryptionError;
+        return false;
+    }
+
+    const QByteArray encodedCredentials = encrypted.toBase64();
+    QSaveFile file(filePath);
+    if (!file.open(QIODevice::WriteOnly)
+            || file.write(kRememberedLoginHeader) != kRememberedLoginHeader.size()
+            || file.write(encodedCredentials) != encodedCredentials.size()
+            || file.write("\n") != 1
+            || !file.commit()) {
+        return false;
+    }
+
+    m_rememberedUsername = normalizedUsername;
+    m_rememberedPassword = password;
+    m_rememberLogin = true;
+    emit rememberedLoginChanged();
     return true;
 }
 
@@ -140,4 +359,189 @@ void ServerConnectionSettings::setStatusMessage(const QString &message)
         return;
     m_statusMessage = message;
     emit statusMessageChanged();
+}
+
+bool ServerConnectionSettings::loadRememberedLogin(QString *errorMessage)
+{
+    removeLegacyLoginSettingsFile();
+    m_rememberedUsername.clear();
+    m_rememberedPassword.clear();
+    m_rememberLogin = false;
+
+    QFile file(rememberedLoginFilePath());
+    if (!file.exists())
+        return true;
+    if (!file.open(QIODevice::ReadOnly)) {
+        if (errorMessage)
+            *errorMessage = QStringLiteral("无法读取加密登录记住状态文件");
+        return false;
+    }
+    const QByteArray contents = file.readAll();
+    if (!contents.startsWith(kRememberedLoginHeader)) {
+        if (errorMessage)
+            *errorMessage = QStringLiteral("登录记住状态文件格式无效，已忽略");
+        return false;
+    }
+
+    QString decryptError;
+    const QByteArray plainText = unprotectForCurrentWindowsUser(
+        QByteArray::fromBase64(contents.mid(kRememberedLoginHeader.size()).trimmed()), &decryptError);
+    if (plainText.isEmpty()) {
+        if (errorMessage)
+            *errorMessage = decryptError;
+        return false;
+    }
+
+    QJsonParseError parseError;
+    const QJsonDocument document = QJsonDocument::fromJson(plainText, &parseError);
+    const QJsonObject object = document.object();
+    if (parseError.error != QJsonParseError::NoError || !document.isObject()
+            || object.value(QStringLiteral("format")).toString()
+                   != QStringLiteral("qmlProductManager.rememberedLogin.v1")
+            || !object.value(QStringLiteral("username")).isString()
+            || !object.value(QStringLiteral("password")).isString()) {
+        if (errorMessage)
+            *errorMessage = QStringLiteral("登录记住状态文件内容无效，已忽略");
+        return false;
+    }
+
+    m_rememberedUsername = object.value(QStringLiteral("username")).toString();
+    m_rememberedPassword = object.value(QStringLiteral("password")).toString();
+    m_rememberLogin = !m_rememberedUsername.isEmpty() && !m_rememberedPassword.isEmpty();
+    return true;
+}
+
+QString ServerConnectionSettings::rememberedLoginFilePath()
+{
+    return QDir(AppConfig::configDirectory()).filePath(QStringLiteral("login_credentials.enc"));
+}
+
+void ServerConnectionSettings::removeLegacyLoginSettingsFile()
+{
+    // 旧版 login.ini 仅包含 Base64 文本，不能继续保留为可恢复的明文密码副本。
+    QFile::remove(QDir(AppConfig::configDirectory()).filePath(QStringLiteral("login.ini")));
+}
+
+bool ServerConnectionSettings::readEncryptedConfig(const QString &filePath, QVariantMap *values,
+                                                    QString *errorMessage)
+{
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        if (errorMessage)
+            *errorMessage = QStringLiteral("未找到加密数据库服务器配置文件：%1")
+                    .arg(QDir::toNativeSeparators(filePath));
+        return false;
+    }
+    const QByteArray contents = file.readAll();
+    if (!contents.startsWith(kEncryptedConfigHeader)) {
+        if (errorMessage)
+            *errorMessage = QStringLiteral("选择的文件不是本程序生成的加密数据库服务器配置文件");
+        return false;
+    }
+
+    const QByteArray encrypted = QByteArray::fromBase64(contents.mid(kEncryptedConfigHeader.size()).trimmed());
+    if (encrypted.isEmpty()) {
+        if (errorMessage)
+            *errorMessage = QStringLiteral("加密数据库服务器配置文件内容无效");
+        return false;
+    }
+
+    QString decryptError;
+    const QByteArray plainText = unprotectForCurrentWindowsUser(encrypted, &decryptError);
+    if (plainText.isEmpty()) {
+        if (errorMessage)
+            *errorMessage = decryptError;
+        return false;
+    }
+
+    QJsonParseError parseError;
+    const QJsonDocument document = QJsonDocument::fromJson(plainText, &parseError);
+    if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
+        if (errorMessage)
+            *errorMessage = QStringLiteral("加密配置文件格式无效");
+        return false;
+    }
+
+    const QJsonObject object = document.object();
+    if (object.value(QStringLiteral("format")).toString() != QStringLiteral("qmlProductManager.databaseServer.v1")) {
+        if (errorMessage)
+            *errorMessage = QStringLiteral("加密配置文件版本不受支持");
+        return false;
+    }
+
+    QVariantMap parsedValues;
+    if (!appendDatabaseValues(object.value(QStringLiteral("userDatabase")).toObject(),
+                              QStringLiteral("userDatabase/"), &parsedValues, errorMessage)
+            || !appendDatabaseValues(object.value(QStringLiteral("businessDatabase")).toObject(),
+                                     QStringLiteral("businessDatabase/"), &parsedValues, errorMessage)
+            || !validateValues(parsedValues, errorMessage)) {
+        return false;
+    }
+
+    if (values)
+        *values = parsedValues;
+    return true;
+}
+
+bool ServerConnectionSettings::writeEncryptedConfig(const QString &filePath, const QVariantMap &values,
+                                                     QString *errorMessage)
+{
+    if (!validateValues(values, errorMessage))
+        return false;
+    if (!QDir().mkpath(QFileInfo(filePath).absolutePath())) {
+        if (errorMessage)
+            *errorMessage = QStringLiteral("无法创建配置目录：%1")
+                    .arg(QDir::toNativeSeparators(QFileInfo(filePath).absolutePath()));
+        return false;
+    }
+
+    QJsonObject object{
+        {QStringLiteral("format"), QStringLiteral("qmlProductManager.databaseServer.v1")},
+        {QStringLiteral("userDatabase"), databaseObjectFromValues(values, QStringLiteral("userDatabase/"))},
+        {QStringLiteral("businessDatabase"), databaseObjectFromValues(values, QStringLiteral("businessDatabase/"))}
+    };
+    QString encryptionError;
+    const QByteArray encrypted = protectForCurrentWindowsUser(QJsonDocument(object).toJson(QJsonDocument::Compact),
+                                                               &encryptionError);
+    if (encrypted.isEmpty()) {
+        if (errorMessage)
+            *errorMessage = encryptionError;
+        return false;
+    }
+
+    QSaveFile file(filePath);
+    const QByteArray encodedConfig = encrypted.toBase64();
+    if (!file.open(QIODevice::WriteOnly)
+            || file.write(kEncryptedConfigHeader) != kEncryptedConfigHeader.size()
+            || file.write(encodedConfig) != encodedConfig.size()
+            || file.write("\n") != 1
+            || !file.commit()) {
+        if (errorMessage)
+            *errorMessage = QStringLiteral("无法保存加密数据库服务器配置文件：%1")
+                    .arg(QDir::toNativeSeparators(filePath));
+        return false;
+    }
+    return true;
+}
+
+bool ServerConnectionSettings::validateValues(const QVariantMap &values, QString *errorMessage)
+{
+    const QString host = values.value(QStringLiteral("userDatabase/host")).toString().trimmed();
+    const int port = values.value(QStringLiteral("userDatabase/port")).toInt();
+    const QString username = values.value(QStringLiteral("userDatabase/username")).toString().trimmed();
+    const QString password = values.value(QStringLiteral("userDatabase/password")).toString();
+    const QString userDatabaseName = values.value(QStringLiteral("userDatabase/name")).toString().trimmed();
+    const QString businessDatabaseName = values.value(QStringLiteral("businessDatabase/name")).toString().trimmed();
+    if (host.isEmpty() || username.isEmpty() || password.isEmpty() || userDatabaseName.isEmpty()
+            || businessDatabaseName.isEmpty()) {
+        if (errorMessage)
+            *errorMessage = QStringLiteral("请完整填写服务器地址、账号、密码和两个数据库名称");
+        return false;
+    }
+    if (port < 1 || port > 65535) {
+        if (errorMessage)
+            *errorMessage = QStringLiteral("端口必须在 1 到 65535 之间");
+        return false;
+    }
+    return true;
 }

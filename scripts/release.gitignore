@@ -1,0 +1,5 @@
+# qmlProductManager release runtime state
+*.log
+config/*.enc
+config/login.ini
+config/app.ini.local
